@@ -41,13 +41,15 @@
     background: white; color: #555; border: 1px solid #d0d3d8;
   }
   .tabs {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px; margin-bottom: 14px;
+    /* v1.0.14 Phase B-3：改 flex 讓 4 個 tab 出現時自動 reflow */
+    display: flex; gap: 4px; margin-bottom: 14px;
   }
   .tabs button {
+    flex: 1; min-width: 0;
     padding: 8px 4px; border: 1px solid #e0e3e7;
     background: white; border-radius: 6px;
     font-size: 13px; cursor: pointer; color: #555;
+    white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
   }
   .tabs button.active {
     background: #06C755; color: white; border-color: #06C755; font-weight: 600;
@@ -174,10 +176,12 @@
       <span class="chip-icon">⏳</span>
       <span class="chip-msg" data-i18n="chip.loading">載入今日狀態…</span>
     </div>
-    <div class="tabs">
+    <!-- v1.0.14 Phase B-3：4 個 tab。「待簽」smart-show — count>0 才顯示 -->
+    <div class="tabs" id="tabsRow">
       <button id="tabBtnApply" class="active" onclick="switchTab('apply')">📝 <span data-i18n="apply.tab">請假</span></button>
       <button id="tabBtnHistory" onclick="switchTab('history')">📋 <span data-i18n="history.tab">歷程</span></button>
       <button id="tabBtnCalendar" onclick="switchTab('calendar')">📅 <span data-i18n="cal.tab">月曆</span></button>
+      <button id="tabBtnPending" class="hidden" onclick="switchTab('pending')">📨 <span data-i18n="pending.tab">待簽</span><span id="pendingBadge" style="display:none;margin-left:3px;background:#D85A30;color:white;font-size:10px;padding:1px 5px;border-radius:8px;font-weight:600;"></span></button>
     </div>
 
     <!-- 請假 -->
@@ -299,8 +303,32 @@
       </div>
       <div id="calContainer" class="empty" data-i18n="app.loadingShort">載入中…</div>
     </div>
+
+    <!-- v1.0.14 Phase B-3: 待簽 tab —— 主簽核 + 證明覆核 合在一起 -->
+    <div id="panePending" class="pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong data-i18n="pending.title">待我簽核</strong>
+        <button onclick="loadPendingTab(true)" style="padding:4px 10px;border:1px solid #d0d3d8;background:white;border-radius:5px;font-size:12px;cursor:pointer;color:#555;">↻ <span data-i18n="pending.refresh">重新整理</span></button>
+      </div>
+      <div id="pendingContainer" class="empty" data-i18n="app.loadingShort">載入中…</div>
+    </div>
   </div>
 
+</div>
+
+<!-- v1.0.14 Phase B-3：拒絕簽核 / 拒絕證明 modal（共用） -->
+<div id="rejectModal" class="modal-mask hidden">
+  <div class="modal">
+    <h3 id="rejectModalTitle" data-i18n="reject.title">📋 填寫拒絕理由</h3>
+    <div class="field">
+      <label data-i18n="reject.reasonLabel">理由（必填）</label>
+      <textarea id="rejectModalNote" style="min-height:80px;"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeRejectModal()" data-i18n="reject.cancel">取消</button>
+      <button class="btn btn-primary" onclick="submitRejectModal(this)" data-i18n="reject.submit">送出</button>
+    </div>
+  </div>
 </div>
 
 <!-- 補證明 modal -->
@@ -338,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.13';
+var APP_VERSION = 'static-1.0.14';
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -425,7 +453,34 @@ var I18N_DICTS = {
     'chip.onLeave': '今日請假中',
     'chip.holiday': '今日為假日',
     'chip.unscheduled': '今日非排班日',
-    'chip.loadFail': '今日狀態載入失敗'
+    'chip.loadFail': '今日狀態載入失敗',
+    // v1.0.14 Phase B-3: 待簽 tab
+    'pending.tab': '待簽',
+    'pending.title': '待我簽核',
+    'pending.refresh': '重新整理',
+    'pending.empty': '目前沒有待簽事項',
+    'pending.badge.approve': '🟡 主簽核',
+    'pending.badge.proof': '🔵 證明覆核',
+    'pending.btn.detail': '詳情',
+    'pending.btn.approve': '准假',
+    'pending.btn.reject': '拒絕',
+    'pending.btn.verify': '為證',
+    'pending.btn.rejectProof': '退證明',
+    'pending.confirm.approve': '確定准假？',
+    'pending.confirm.verify': '確定通過證明覆核？',
+    'pending.det.applicant': '申請人',
+    'pending.det.leave': '假別',
+    'pending.det.range': '日期',
+    'pending.det.hours': '時數',
+    'pending.det.reason': '原因',
+    'pending.det.proofFile': '證明檔案',
+    'pending.det.proofLink': '證明連結',
+    'pending.det.proofNote': '證明說明',
+    'reject.title': '📋 填寫拒絕理由',
+    'reject.reasonLabel': '理由（必填）',
+    'reject.cancel': '取消',
+    'reject.submit': '送出',
+    'reject.noteRequired': '請填寫拒絕理由'
   },
   'en': {
     'app.loadingName': 'Loading…', 'app.loading': '🔄 Verifying LINE identity…',
@@ -493,7 +548,34 @@ var I18N_DICTS = {
     'chip.onLeave': 'On leave today',
     'chip.holiday': 'Today is a holiday',
     'chip.unscheduled': 'No shift scheduled today',
-    'chip.loadFail': 'Failed to load today\'s status'
+    'chip.loadFail': 'Failed to load today\'s status',
+    // v1.0.14 Phase B-3: Pending approvals tab
+    'pending.tab': 'Inbox',
+    'pending.title': 'Pending my approval',
+    'pending.refresh': 'Refresh',
+    'pending.empty': 'No pending items',
+    'pending.badge.approve': '🟡 Approval',
+    'pending.badge.proof': '🔵 Proof review',
+    'pending.btn.detail': 'Detail',
+    'pending.btn.approve': 'Approve',
+    'pending.btn.reject': 'Reject',
+    'pending.btn.verify': 'Verify',
+    'pending.btn.rejectProof': 'Reject proof',
+    'pending.confirm.approve': 'Approve this leave request?',
+    'pending.confirm.verify': 'Verify this proof?',
+    'pending.det.applicant': 'Applicant',
+    'pending.det.leave': 'Leave type',
+    'pending.det.range': 'Date',
+    'pending.det.hours': 'Hours',
+    'pending.det.reason': 'Reason',
+    'pending.det.proofFile': 'Proof file',
+    'pending.det.proofLink': 'Proof URL',
+    'pending.det.proofNote': 'Proof note',
+    'reject.title': '📋 Reject reason',
+    'reject.reasonLabel': 'Reason (required)',
+    'reject.cancel': 'Cancel',
+    'reject.submit': 'Submit',
+    'reject.noteRequired': 'Please provide a reject reason'
   },
   'th': {
     'app.loadingName': 'กำลังโหลด…', 'app.loading': '🔄 กำลังตรวจสอบ LINE…',
@@ -561,7 +643,34 @@ var I18N_DICTS = {
     'chip.onLeave': 'ลาวันนี้',
     'chip.holiday': 'วันนี้เป็นวันหยุด',
     'chip.unscheduled': 'ไม่มีกะวันนี้',
-    'chip.loadFail': 'โหลดสถานะวันนี้ล้มเหลว'
+    'chip.loadFail': 'โหลดสถานะวันนี้ล้มเหลว',
+    // v1.0.14 Phase B-3: รออนุมัติ tab
+    'pending.tab': 'รออนุมัติ',
+    'pending.title': 'รอฉันอนุมัติ',
+    'pending.refresh': 'รีเฟรช',
+    'pending.empty': 'ไม่มีรายการรออนุมัติ',
+    'pending.badge.approve': '🟡 อนุมัติหลัก',
+    'pending.badge.proof': '🔵 ตรวจหลักฐาน',
+    'pending.btn.detail': 'รายละเอียด',
+    'pending.btn.approve': 'อนุมัติ',
+    'pending.btn.reject': 'ปฏิเสธ',
+    'pending.btn.verify': 'รับรอง',
+    'pending.btn.rejectProof': 'ปฏิเสธหลักฐาน',
+    'pending.confirm.approve': 'ยืนยันอนุมัติ?',
+    'pending.confirm.verify': 'ยืนยันรับรองหลักฐาน?',
+    'pending.det.applicant': 'ผู้ขอ',
+    'pending.det.leave': 'ประเภทลา',
+    'pending.det.range': 'วันที่',
+    'pending.det.hours': 'ชั่วโมง',
+    'pending.det.reason': 'เหตุผล',
+    'pending.det.proofFile': 'ไฟล์หลักฐาน',
+    'pending.det.proofLink': 'ลิงก์หลักฐาน',
+    'pending.det.proofNote': 'หมายเหตุหลักฐาน',
+    'reject.title': '📋 เหตุผลการปฏิเสธ',
+    'reject.reasonLabel': 'เหตุผล (จำเป็น)',
+    'reject.cancel': 'ยกเลิก',
+    'reject.submit': 'ส่ง',
+    'reject.noteRequired': 'กรุณากรอกเหตุผล'
   }
 };
 
@@ -672,6 +781,9 @@ var ACTION_MAP = {
   'webLiffMyLeaveHistory':           { action: 'myLeaveHistory',    params: ['idToken', 'year'] },
   'webLiffMonthlyAttendance':        { action: 'monthlyAttendance', params: ['idToken', 'yearMonth'] },
   'webLiffTodayStatus':              { action: 'todayStatus',       params: ['idToken'] },
+  'webLiffApprovalBundle':           { action: 'approvalBundle',    params: ['idToken'] },
+  'webLiffApproveLeave':             { action: 'approveLeave',      params: ['idToken', 'requestId', 'decision', 'note'] },
+  'webLiffProofReview':              { action: 'proofReview',       params: ['idToken', 'requestId', 'decision', 'note'] },
   'webLiffUpdateProofData':          { action: 'updateProofData',   params: ['idToken', 'requestId', 'proofData'] },
   'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] }
 };
@@ -775,6 +887,11 @@ window.addEventListener('DOMContentLoaded', async function() {
       renderApplyForm();
     }
 
+    // v1.0.14 Phase B-3: approvalBundle smart-show 「待簽」tab
+    if (res.data.approvalBundle) {
+      applyApprovalBundle(res.data.approvalBundle);
+    }
+
     // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
     if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
       $('applyFormLoading').textContent = '❌ load fail';
@@ -821,6 +938,9 @@ async function onBind(btn) {
     if (ex.data.leaveTypes) {
       APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
     }
+    if (ex.data.approvalBundle) {
+      applyApprovalBundle(ex.data.approvalBundle);
+    }
   } catch (e) {
     alert('error: ' + (e && e.message || e));
     btn.disabled = false; btn.textContent = t('bind.submit');
@@ -830,7 +950,8 @@ async function onBind(btn) {
 function onLogout() { try { liff.logout(); } catch (e) {} location.reload(); }
 
 function switchTab(name) {
-  ['apply', 'history', 'calendar'].forEach(function(n) {
+  // v1.0.14 Phase B-3: 多了 pending
+  ['apply', 'history', 'calendar', 'pending'].forEach(function(n) {
     var btn = $('tabBtn' + n.charAt(0).toUpperCase() + n.slice(1));
     var pane = $('pane' + n.charAt(0).toUpperCase() + n.slice(1));
     if (btn) btn.classList.toggle('active', n === name);
@@ -839,6 +960,7 @@ function switchTab(name) {
   if (name === 'apply') loadApplyTabIfNeeded();
   if (name === 'history') loadHistoryTab();
   if (name === 'calendar') loadCalendarTab();
+  if (name === 'pending') loadPendingTab();
 }
 
 // === apply form =======================================================
@@ -1197,146 +1319,4 @@ function renderCalendar(data) {
   html += '</div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
   [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
-    html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</span>';
-  });
-  html += '</div>';
-  box.innerHTML = html;
-  window._calDays = days;
-}
-function onCalDayClick(date) {
-  if (!window._calDays) return;
-  var d = window._calDays.find(function(x){ return x.date === date; });
-  if (!d) return;
-  var msg = date + '（' + d.weekday + '）\n\n' + (d.statusLabel || d.status);
-  if (d.shiftName || d.shiftNameZh || d.shiftId) {
-    var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
-    msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
-  }
-  if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
-  // v1.0.13 Phase B-2: 拿掉下班時間，員工面只顯示「上班時間 + 狀態」
-  alert(msg);
-}
-
-// === today chip (v1.0.6 Phase B-1) ====================================
-// 設計：
-//   - auth 後背景 fire webLiffMonthlyAttendance(當月) → 找 today → 算 chip 狀態
-//   - 同步把整月 response cache 進 window._calCache[YM]，月曆 tab 直接複用
-//   - chip 狀態：clockedIn / clockedInOnly / notClockedYet / onLeave / holiday / unscheduled
-//   - 不顯示實際打卡時間（符合 Phase B 規範：員工面只顯示 ✅/⚠）
-//   - 語言切換時 renderTodayChip 重跑（state 存在 window._todayChipState）
-async function loadTodayChip(prefiredPromise) {
-  // v1.0.10: 改用 webLiffTodayStatus 輕量 RPC（回傳 {date, status, hasIn, hasOut, ...}，非整月）
-  try {
-    var res;
-    if (prefiredPromise) {
-      res = await prefiredPromise;
-    } else {
-      if (!SESSION || !SESSION.idToken) return;
-      res = await rpc('webLiffTodayStatus', [SESSION.idToken]);
-    }
-    if (!res || !res.success || !res.data) {
-      renderTodayChip({ kind: 'fail' });
-      return;
-    }
-    var today = res.data;  // { date, status, hasIn, hasOut, isHoliday, holidayName, hasSchedule }
-    var hasIn = !!today.hasIn;
-    var hasOut = !!today.hasOut;
-    var state;
-    if (today.status === 'leave')        state = { kind: 'leave' };
-    else if (today.status === 'holiday') state = { kind: 'holiday' };
-    else if (today.status === 'unscheduled') {
-      // 無排班 fallback：有打卡 → ✅；沒打卡 → 真的非排班日
-      if (hasIn && hasOut)      state = { kind: 'clockedIn' };
-      else if (hasIn && !hasOut) state = { kind: 'clockedInOnly' };
-      else                       state = { kind: 'unscheduled' };
-    }
-    else if (today.status === 'no_data') state = { kind: 'notClockedYet' };
-    else if (hasIn && hasOut)            state = { kind: 'clockedIn' };          // normal / late
-    else if (hasIn && !hasOut)           state = { kind: 'clockedInOnly' };       // absent / 上班中
-    else                                  state = { kind: 'notClockedYet' };
-    renderTodayChip(state);
-  } catch (e) {
-    dbg('chip load fail: ' + (e && e.message || e));
-    renderTodayChip({ kind: 'fail' });
-  }
-}
-
-function renderTodayChip(state) {
-  window._todayChipState = state;
-  var el = $('todayChip');
-  if (!el) return;
-  // reset classes
-  el.className = 'today-chip';
-  var icon = '', cssCls = '', msgKey = '', subKey = '';
-  switch (state.kind) {
-    case 'clockedIn':      icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedIn'; break;
-    case 'clockedInOnly':  icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedInOnly'; subKey = 'chip.dontForgetOut'; break;
-    case 'notClockedYet':  icon = '⚠'; cssCls = 'chip-warn';    msgKey = 'chip.notClockedYet'; break;
-    case 'onLeave':
-    case 'leave':          icon = '🏖'; cssCls = 'chip-leave';   msgKey = 'chip.onLeave'; break;
-    case 'holiday':        icon = '🌟'; cssCls = 'chip-holiday'; msgKey = 'chip.holiday'; break;
-    case 'unscheduled':    icon = '—'; cssCls = 'chip-muted';   msgKey = 'chip.unscheduled'; break;
-    case 'fail':           icon = '⚠'; cssCls = 'chip-muted';   msgKey = 'chip.loadFail'; break;
-    default:               icon = '⏳'; cssCls = 'chip-loading'; msgKey = 'chip.loading';
-  }
-  el.classList.add(cssCls);
-  var html = '<span class="chip-icon">' + icon + '</span>'
-           + '<span class="chip-msg">' + escapeHtml(t(msgKey)) + '</span>';
-  if (subKey) html += '<span class="chip-sub">' + escapeHtml(t(subKey)) + '</span>';
-  el.innerHTML = html;
-}
-
-// === proof modal (補證明) =============================================
-var PROOF_MODAL_REQID = null;
-function openProofModal(requestId) {
-  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
-  PROOF_MODAL_REQID = requestId;
-  PROOF_MODAL_SELECTED_FILE = null;
-  if ($('proofModalFile')) $('proofModalFile').value = '';
-  if ($('proofModalCamera')) $('proofModalCamera').value = '';
-  $('proofModalUrl').value = '';
-  $('proofModalNote').value = '';
-  if ($('proofModalFileName')) $('proofModalFileName').textContent = '';
-  $('proofModal').classList.remove('hidden');
-}
-function closeProofModal() {
-  $('proofModal').classList.add('hidden');
-  PROOF_MODAL_REQID = null;
-  PROOF_MODAL_SELECTED_FILE = null;
-}
-async function submitProofModal(btn) {
-  if (!PROOF_MODAL_REQID) return;
-  var url = ($('proofModalUrl').value || '').trim();
-  var note = ($('proofModalNote').value || '').trim();
-  var file = PROOF_MODAL_SELECTED_FILE;
-  if (!url && !note && !file) { alert(t('proof.fileLabel')); return; }
-  btn.disabled = true;
-  try {
-    var proofData = {};
-    if (url) proofData.link = url;
-    if (note) proofData.note = note;
-    if (file) {
-      var b64 = await fileToBase64(file);
-      var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, PROOF_MODAL_REQID, {
-        base64: b64, fileName: file.name, mimeType: file.type || 'application/octet-stream'
-      }]);
-      if (upRes && upRes.success) {
-        proofData.fileId = upRes.data.fileId;
-        proofData.fileUrl = upRes.data.fileUrl;
-        proofData.fileName = upRes.data.fileName;
-      } else {
-        alert((upRes && upRes.message) || 'upload fail'); btn.disabled = false; return;
-      }
-    }
-    var res = await rpc('webLiffUpdateProofData', [SESSION.idToken, PROOF_MODAL_REQID, proofData]);
-    btn.disabled = false;
-    if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
-    alert(t('proof.successWait'));
-    closeProofModal();
-    loadHistoryTab();
-  } catch (e) { btn.disabled = false; alert(e.message || e); }
-}
-</script>
-
-</body>
-</html>
+    html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</sp
