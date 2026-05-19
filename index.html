@@ -338,7 +338,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.12';
+var APP_VERSION = 'static-1.0.13';
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -1192,7 +1192,8 @@ function renderCalendar(data) {
   html += '<div style="margin-top:14px;padding:10px;background:white;border-radius:8px;border:1px solid #e6e8eb;font-size:12px;line-height:1.7em;">';
   html += '<strong>' + t('cal.summary') + '</strong><br>';
   html += t('cal.workDays') + ' ' + (s.workDays || 0) + ' ｜ ' + t('cal.leaveDays') + ' ' + (s.leaveDays || 0) + ' ｜ ' + t('cal.holidayDays') + ' ' + (s.holidayDays || 0) + '<br>';
-  html += t('cal.totalHours') + ' ' + (s.totalWorkHours || 0) + ' ｜ ' + t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
+  // v1.0.13 Phase B-2: 拿掉「總工時」這個累積時數，員工面只顯示天數類狀態
+  html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
   html += '</div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
   [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
@@ -1212,7 +1213,7 @@ function onCalDayClick(date) {
     msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
   }
   if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
-  if (d.actualOut) msg += '\n' + t('app.out') + ': ' + d.actualOut;
+  // v1.0.13 Phase B-2: 拿掉下班時間，員工面只顯示「上班時間 + 狀態」
   alert(msg);
 }
 
