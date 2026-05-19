@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.14';
+var APP_VERSION = 'static-1.0.15';
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -887,10 +887,10 @@ window.addEventListener('DOMContentLoaded', async function() {
       renderApplyForm();
     }
 
-    // v1.0.14 Phase B-3: approvalBundle smart-show 「待簽」tab
-    if (res.data.approvalBundle) {
-      applyApprovalBundle(res.data.approvalBundle);
-    }
+    // v1.0.15: approvalBundle 從 init 拆出來，背景另發（init 太慢被它拖累）
+    rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
+      if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
+    }).catch(function(e) { dbg('approvalBundle fail: ' + (e && e.message || e)); });
 
     // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
     if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
@@ -938,9 +938,10 @@ async function onBind(btn) {
     if (ex.data.leaveTypes) {
       APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
     }
-    if (ex.data.approvalBundle) {
-      applyApprovalBundle(ex.data.approvalBundle);
-    }
+    // v1.0.15: approvalBundle lazy fire
+    rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
+      if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
+    }).catch(function(e) {});
   } catch (e) {
     alert('error: ' + (e && e.message || e));
     btn.disabled = false; btn.textContent = t('bind.submit');
@@ -1318,5 +1319,4 @@ function renderCalendar(data) {
   html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
   html += '</div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
-  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
-    html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</sp
+  [['#E8F5E9','cal.status.normal'],['#FBEA
