@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>鋁創請假</title>
+<!--
+  hrm-attendance LIFF (static, Netlify hosted)
+  Phase 1.11y.11 — full i18n + file upload + proof modal
+  - GAS RPC endpoint: GAS_URL?api=liff
+  - LIFF endpoint URL (LINE Developers Console): this page's URL
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 14px; background: #f7f8fa; color: #1a1a1a;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 480px; margin: 0 auto; padding: 16px 14px 80px; }
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; background: white;
+    border-bottom: 1px solid #e6e8eb; margin: -16px -14px 12px;
+  }
+  .topbar .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #06C755; color: white; display: flex;
+    align-items: center; justify-content: center; font-weight: 600;
+  }
+  .topbar .who { flex: 1; font-size: 13px; line-height: 1.3; min-width: 0; }
+  .topbar .who .name { font-weight: 600; }
+  .topbar .who .id { color: #888; font-size: 11px; }
+  .topbar select.lang {
+    border: 1px solid #d0d3d8; border-radius: 5px;
+    background: white; padding: 4px 6px; font-size: 12px;
+  }
+  .topbar button.logout {
+    padding: 6px 10px; font-size: 12px; border-radius: 5px;
+    background: white; color: #555; border: 1px solid #d0d3d8;
+  }
+  .tabs {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px; margin-bottom: 14px;
+  }
+  .tabs button {
+    padding: 8px 4px; border: 1px solid #e0e3e7;
+    background: white; border-radius: 6px;
+    font-size: 13px; cursor: pointer; color: #555;
+  }
+  .tabs button.active {
+    background: #06C755; color: white; border-color: #06C755; font-weight: 600;
+  }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  .card {
+    background: white; border-radius: 8px; padding: 14px;
+    margin-bottom: 10px; border: 1px solid #e6e8eb;
+  }
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block; font-size: 12px; color: #666; margin-bottom: 4px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 9px 10px; font-size: 14px;
+    border: 1px solid #d0d3d8; border-radius: 5px;
+    background: white; font-family: inherit;
+  }
+  .field textarea { min-height: 56px; resize: vertical; }
+  .btn {
+    width: 100%; padding: 11px; font-size: 15px; font-weight: 600;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  .btn-primary { background: #06C755; color: white; }
+  .btn-primary:disabled { background: #b5e3c5; }
+  .btn-secondary { background: white; color: #555; border: 1px solid #d0d3d8; }
+  .alert {
+    padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px;
+  }
+  .alert-info { background: #e7f3fe; color: #0066cc; }
+  .alert-warning { background: #fff7e6; color: #b97b00; }
+  .alert-danger { background: #fde8e8; color: #c82333; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; }
+  .empty { text-align: center; padding: 32px 16px; color: #999; font-size: 13px; }
+  .hidden { display: none !important; }
+  /* v1.0.6 Phase B-1: 今日打卡狀態 chip */
+  .today-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; margin: 0 0 12px 0;
+    border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; line-height: 1.3;
+  }
+  .today-chip .chip-icon { font-size: 16px; }
+  .today-chip .chip-msg { flex: 1; min-width: 0; }
+  .today-chip .chip-sub { font-weight: 400; font-size: 11px; opacity: 0.75; margin-left: 6px; white-space: nowrap; }
+  .today-chip.chip-ok      { background: #E8F5E9; color: #1B5E20; border-color: #c8e6c9; }
+  .today-chip.chip-warn    { background: #FFF7E6; color: #854F0B; border-color: #ffe0b2; }
+  .today-chip.chip-leave   { background: #FBEAF0; color: #4B1528; border-color: #f5c1d2; }
+  .today-chip.chip-holiday { background: #F5F5F5; color: #555;    border-color: #e0e0e0; }
+  .today-chip.chip-muted   { background: #FAFAFA; color: #777;    border-color: #ececec; }
+  .today-chip.chip-loading { background: #f3f6fa; color: #555;    border-color: #e0e3e7; font-weight: 400; }
+  /* Modal */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 16px;
+  }
+  .modal {
+    background: white; border-radius: 10px; padding: 16px;
+    max-width: 380px; width: 100%; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 12px; }
+  .modal .btn-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 頂部：人員 + 語系 + 三 tab -->
+  <div class="topbar">
+    <div class="avatar" id="avatar">?</div>
+    <div class="who">
+      <div class="name" id="whoName" data-i18n="app.loadingName">載入中…</div>
+      <div class="id" id="whoId"></div>
+    </div>
+    <select class="lang" id="langSelect" onchange="changeLang(this.value)">
+      <option value="zh-TW">繁中</option>
+      <option value="en">EN</option>
+      <option value="th">ไทย</option>
+    </select>
+    <button class="logout" onclick="onLogout()" data-i18n="app.logout">登出</button>
+  </div>
+
+  <!-- 認證中 -->
+  <div id="loadingPane" class="alert alert-info">
+    <span data-i18n="app.loading">🔄 正在驗證 LINE 身份…</span>
+    <div id="dbgLog" style="display:none;font-family:monospace;font-size:11px;color:#555;margin-top:8px;white-space:pre-wrap;line-height:1.5;"></div>
+  </div>
+
+  <!-- 首次綁定 -->
+  <div id="bindPane" class="hidden">
+    <div class="alert alert-warning">
+      <strong data-i18n="bind.firstTime">第一次使用？</strong><br>
+      <span data-i18n="bind.note">請輸入你的員工編號，幫你綁定 LINE 帳號。之後就不用再輸入。</span>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label data-i18n="bind.empId">員工編號</label>
+        <input type="text" id="bindEmpId" placeholder="HUGO" autocapitalize="characters">
+      </div>
+      <button class="btn btn-primary" onclick="onBind(this)" data-i18n="bind.submit">綁定</button>
+    </div>
+  </div>
+
+  <!-- v1.0.88: HRM_NOT_OPEN_YET gate — Portal 沒給 hrm-attendance 權限 -->
+  <div id="gatePane" class="hidden">
+    <div class="alert alert-warning" style="text-align:center;padding:24px;">
+      <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+      <strong data-i18n="gate.title" style="font-size:18px;display:block;margin-bottom:8px;">考勤系統測試中</strong>
+      <span data-i18n="gate.body">目前未開放您使用考勤系統。如有疑問請聯絡管理員。</span>
+    </div>
+  </div>
+
+  <!-- 認證失敗 -->
+  <div id="errorPane" class="hidden alert alert-danger"></div>
+
+  <!-- 主功能 -->
+  <div id="mainPane" class="hidden">
+    <!-- v1.0.6 Phase B-1: 今日打卡狀態 chip — auth 後背景 fire monthlyAttendance 取得 -->
+    <div id="todayChip" class="today-chip chip-loading">
+      <span class="chip-icon">⏳</span>
+      <span class="chip-msg" data-i18n="chip.loading">載入今日狀態…</span>
+    </div>
+    <div class="tabs">
+      <button id="tabBtnApply" class="active" onclick="switchTab('apply')">📝 <span data-i18n="apply.tab">請假</span></button>
+      <button id="tabBtnHistory" onclick="switchTab('history')">📋 <span data-i18n="history.tab">歷程</span></button>
+      <button id="tabBtnCalendar" onclick="switchTab('calendar')">📅 <span data-i18n="cal.tab">月曆</span></button>
+    </div>
+
+    <!-- 請假 -->
+    <div id="paneApply" class="pane active">
+      <div id="applyFormLoading" class="alert alert-info" data-i18n="apply.loadingTypes">⏳ 載入假別清單…</div>
+      <div id="applyFormContainer" class="hidden">
+        <!-- Card 1: 基本 -->
+        <div class="card">
+          <div class="field">
+            <label data-i18n="apply.leaveType">假別</label>
+            <select id="appLeaveId" onchange="updateQuotaInfo(); updateExtraFields();"></select>
+            <div id="appQuotaInfo" style="font-size:11px;color:#666;margin-top:4px;"></div>
+          </div>
+          <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <label data-i18n="apply.startDate">起始日期</label>
+              <input type="date" id="appStartDate" onchange="onStartDateChanged()">
+            </div>
+            <div>
+              <label data-i18n="apply.endDate">結束日期</label>
+              <input type="date" id="appEndDate">
+            </div>
+          </div>
+          <div class="field">
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#222;">
+              <input type="checkbox" id="appFullDay" checked onchange="onFullDayToggle()">
+              <span><strong data-i18n="apply.fullDay">全天</strong><span data-i18n="apply.fullDayNote">（依當日排班計算工時）</span></span>
+            </label>
+          </div>
+          <div id="appTimeRange" class="field hidden" style="grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <label data-i18n="apply.startTime">起始時間</label>
+              <input type="time" id="appStartTime" value="08:00">
+            </div>
+            <div>
+              <label data-i18n="apply.endTime">結束時間</label>
+              <input type="time" id="appEndTime" value="17:00">
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: 補充欄位 -->
+        <div class="card hidden" id="appExtraCard">
+          <div style="font-weight:600;font-size:13px;color:#b97b00;margin-bottom:8px;" data-i18n="apply.extraTitle">📋 補充資訊</div>
+          <div class="field hidden" id="appEventDateGroup">
+            <label data-i18n="apply.eventDate">事件日</label>
+            <input type="date" id="appEventDate">
+            <div style="font-size:11px;color:#888;margin-top:3px;" data-i18n="apply.eventDateHint">婚禮/喪事/預產期/配偶生產日/流產日/產檢日</div>
+          </div>
+          <div class="field hidden" id="appPregnancyStageGroup">
+            <label data-i18n="apply.pregnancyStage">妊娠週期</label>
+            <select id="appPregnancyStage">
+              <option value="3m_plus" data-i18n="apply.preg.3m">≥ 3 個月（流產假 28 天）</option>
+              <option value="2_3m" data-i18n="apply.preg.2_3m">2 ~ 3 個月（流產假 7 天）</option>
+              <option value="lt_2m" data-i18n="apply.preg.lt2m">&lt; 2 個月（流產假 5 天）</option>
+            </select>
+          </div>
+          <div class="field hidden" id="appRelationGroup">
+            <label data-i18n="apply.relation">親屬關係</label>
+            <select id="appRelation"></select>
+          </div>
+          <div class="field hidden" id="appRelNameGroup">
+            <label data-i18n="apply.relativeName">親屬姓名</label>
+            <input type="text" id="appRelativeName">
+          </div>
+        </div>
+
+        <!-- Card 3: 原因 + 證明 + 代理人 -->
+        <div class="card">
+          <div class="field">
+            <label data-i18n="apply.reason">請假原因</label>
+            <textarea id="appReason"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="apply.proofFile">證明檔案（可選；拍照或選檔）</label>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('appProofCamera').click()" data-i18n="apply.takePhoto">📷 拍照</button>
+              <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('appProofFile').click()" data-i18n="apply.pickFile">📁 選檔</button>
+            </div>
+            <input type="file" id="appProofCamera" accept="image/*" capture="environment" style="display:none" onchange="onAppFileChosen(this)">
+            <input type="file" id="appProofFile" accept="image/*,application/pdf,.doc,.docx" style="display:none" onchange="onAppFileChosen(this)">
+            <div id="appProofFileName" style="font-size:11px;color:#06C755;margin-top:4px;"></div>
+          </div>
+          <div class="field">
+            <label data-i18n="apply.proofUrl">證明連結（可選）</label>
+            <input type="text" id="appProofUrl" placeholder="https://…">
+          </div>
+          <div class="field">
+            <label data-i18n="apply.proofNote">證明說明（可選）</label>
+            <textarea id="appProofNote"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="apply.delegates">職務代理人（最多 3 位）</label>
+            <select id="appDelegate1" style="margin-bottom:4px;"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
+            <select id="appDelegate2" style="margin-bottom:4px;"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
+            <select id="appDelegate3"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
+          </div>
+          <button class="btn btn-primary" id="appSubmitBtn" onclick="onSubmitLeave(this)" data-i18n="apply.submit">送出請假</button>
+        </div>
+        <div id="appResult"></div>
+      </div>
+    </div>
+
+    <!-- 歷程 -->
+    <div id="paneHistory" class="pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong data-i18n="history.title">我的請假歷程</strong>
+        <select id="histYear" style="padding:6px;border:1px solid #d0d3d8;border-radius:5px;font-size:13px;"></select>
+      </div>
+      <div id="histContainer" class="empty" data-i18n="app.loadingShort">載入中…</div>
+    </div>
+
+    <!-- 月曆 -->
+    <div id="paneCalendar" class="pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <button onclick="changeMonth(-1)" style="padding:6px 12px;border:1px solid #d0d3d8;background:white;border-radius:5px;font-size:13px;cursor:pointer;">‹</button>
+        <strong id="calMonthLabel">— —</strong>
+        <button onclick="changeMonth(1)" style="padding:6px 12px;border:1px solid #d0d3d8;background:white;border-radius:5px;font-size:13px;cursor:pointer;">›</button>
+      </div>
+      <div id="calContainer" class="empty" data-i18n="app.loadingShort">載入中…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 補證明 modal -->
+<div id="proofModal" class="modal-mask hidden">
+  <div class="modal">
+    <h3 data-i18n="proof.title">📎 補證明</h3>
+    <div class="field">
+      <label data-i18n="proof.fileLabel">檔案（可選）</label>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('proofModalCamera').click()" data-i18n="apply.takePhoto">📷 拍照</button>
+        <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('proofModalFile').click()" data-i18n="apply.pickFile">📁 選檔</button>
+      </div>
+      <input type="file" id="proofModalCamera" accept="image/*" capture="environment" style="display:none" onchange="onProofModalFileChosen(this)">
+      <input type="file" id="proofModalFile" accept="image/*,application/pdf,.doc,.docx" style="display:none" onchange="onProofModalFileChosen(this)">
+      <div id="proofModalFileName" style="font-size:11px;color:#06C755;margin-top:4px;"></div>
+    </div>
+    <div class="field">
+      <label data-i18n="proof.urlLabel">連結（可選）</label>
+      <input type="text" id="proofModalUrl" placeholder="https://…">
+    </div>
+    <div class="field">
+      <label data-i18n="proof.noteLabel">說明（可選）</label>
+      <textarea id="proofModalNote"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeProofModal()" data-i18n="proof.cancel">取消</button>
+      <button class="btn btn-primary" onclick="submitProofModal(this)" data-i18n="proof.submit">送出</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIFF SDK -->
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+// === 配置 =============================================================
+var LIFF_ID = '2010088139-PM556AZ4';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
+var APP_VERSION = 'static-1.0.12';
+// ======================================================================
+
+// 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
+// LIFF init 約需 1 秒做 LINE handshake，那段時間 GAS 沒事做就先 ping
+// 等 idToken 拿到打 exchangeToken 時，GAS 應該已經 warm
+// 不需 idToken（liff.js _handleLiffApiRoute_ 的 'ping' action 跳過 auth）
+(function _warmupGas() {
+  try {
+    fetch(GAS_URL + '?api=liff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'ping' })
+    }).catch(function() {});
+  } catch (e) {}
+})();
+
+var SESSION = null;
+
+// === i18n ============================================================
+var I18N_DICTS = {
+  'zh-TW': {
+    'app.loadingName': '載入中…', 'app.loading': '🔄 正在驗證 LINE 身份…',
+    'app.loadingShort': '載入中…', 'app.logout': '登出', 'app.lang': '語言',
+    'app.role.superadmin': '超級管理員', 'app.role.admin': '系統管理員',
+    'app.role.manager': '主管', 'app.role.user': '一般使用者', 'app.role.employee': '員工',
+    'bind.firstTime': '第一次使用？', 'bind.note': '請輸入你的鋁創系統帳號（不是考勤機的員工編號），幫你綁定 LINE。之後就不用再輸入。',
+    'bind.empId': '鋁創系統帳號', 'bind.submit': '綁定', 'bind.submitting': '綁定中…',
+    'apply.tab': '請假', 'apply.loadingTypes': '⏳ 載入假別清單…',
+    'apply.leaveType': '假別', 'apply.startDate': '起始日期', 'apply.endDate': '結束日期',
+    'apply.fullDay': '全天', 'apply.fullDayNote': '（依當日排班計算工時）',
+    'apply.startTime': '起始時間', 'apply.endTime': '結束時間',
+    'apply.extraTitle': '📋 補充資訊',
+    'apply.eventDate': '事件日', 'apply.eventDateHint': '婚禮/喪事/預產期/配偶生產日/流產日/產檢日',
+    'apply.pregnancyStage': '妊娠週期',
+    'apply.preg.3m': '≥ 3 個月（流產假 28 天）', 'apply.preg.2_3m': '2 ~ 3 個月（流產假 7 天）', 'apply.preg.lt2m': '< 2 個月（流產假 5 天）',
+    'apply.relation': '親屬關係', 'apply.relativeName': '親屬姓名',
+    'apply.reason': '請假原因', 'apply.proofFile': '證明檔案（可選；拍照或選檔）',
+    'apply.takePhoto': '📷 拍照', 'apply.pickFile': '📁 選檔',
+    'apply.proofUrl': '證明連結（可選）', 'apply.proofNote': '證明說明（可選）',
+    'apply.delegates': '職務代理人（最多 3 位）', 'apply.notSpecified': '— 不指定 —',
+    'apply.submit': '送出請假', 'apply.submitting': '送出中…',
+    'apply.success': '✅ 已送出！單號：', 'apply.uploadFail': '⚠ 主請假已送出，但證明檔案上傳失敗，請到歷程「補證明」重試',
+    'apply.quotaInfo': '核給 {g} 天 / 已用 {u} 天 / 剩 {r} 天',
+    'history.tab': '歷程', 'history.title': '我的請假歷程', 'history.year': '年',
+    'history.empty': '本年尚無請假紀錄',
+    'history.status.approved': '✓ 已準假', 'history.status.rejected': '✗ 已拒絕',
+    'history.status.cancelled': '已取消', 'history.status.pending': '⏳ 待簽',
+    'history.proof.pending': '📌 待補證明', 'history.proof.submitted': '⏳ 待覆核',
+    'history.proof.verified': '✅ 已覆核', 'history.proof.rejected': '⚠ 證明被退',
+    'history.addProof': '📎 補證明',
+    'cal.tab': '月曆', 'cal.summary': '本月統計',
+    'cal.workDays': '出勤', 'cal.leaveDays': '請假', 'cal.holidayDays': '假日',
+    'cal.totalHours': '總工時', 'cal.lateDays': '遲到', 'cal.absentDays': '缺勤',
+    'cal.status.normal': '正常', 'cal.status.leave': '請假', 'cal.status.late': '遲到',
+    'cal.status.absent': '缺勤', 'cal.status.holiday': '假日',
+    'proof.title': '📎 補證明', 'proof.fileLabel': '檔案（可選）',
+    'proof.urlLabel': '連結（可選）', 'proof.noteLabel': '說明（可選）',
+    'proof.cancel': '取消', 'proof.submit': '送出',
+    'proof.successWait': '✅ 已送出，請等候 admin 覆核',
+    'rel.parent': '父母 (8天)', 'rel.foster_parent': '養父母 (8天)', 'rel.step_parent': '繼父母 (8天)',
+    'rel.spouse': '配偶 (8天)', 'rel.grandparent': '祖父母 (6天)', 'rel.child': '子女 (6天)',
+    'rel.spouse_parent': '配偶之父母 (6天)', 'rel.spouse_foster_parent': '配偶之養父母 (6天)',
+    'rel.spouse_step_parent': '配偶之繼父母 (6天)', 'rel.great_grandparent': '曾祖父母 (3天)',
+    'rel.sibling': '兄弟姊妹 (3天)', 'rel.spouse_grandparent': '配偶之祖父母 (3天)',
+    'app.daysUnit': '天', 'app.hoursUnit': '時',
+    'app.in': '上班', 'app.out': '下班',
+    'app.sessionLost': 'Session 失效，請重新整理',
+    'app.fail': '失敗', 'app.uploadFail': '上傳失敗',
+    'app.err.noLiffId': 'LIFF_ID 未設定',
+    'app.err.sdkNotLoaded': 'LIFF SDK 沒載入',
+    'app.err.noIdToken': '無 ID token',
+    'app.err.authFailed': '驗證失敗',
+    'app.err.bindRefetch': '綁定成功但 re-fetch 失敗，請重新整理',
+    'apply.successHours': '時數：',
+    'cal.dayMsg.shiftLine': '{name}（{start}~{end}）',
+    'gate.title': '考勤系統測試中',
+    'gate.body': '目前未開放您使用考勤系統。如有疑問請聯絡管理員。',
+    // v1.0.6 Phase B-1: 今日打卡狀態 chip
+    'chip.loading': '載入今日狀態…',
+    'chip.clockedIn': '今日已完成打卡',
+    'chip.clockedInOnly': '今日已上班打卡',
+    'chip.dontForgetOut': '別忘了下班打卡',
+    'chip.notClockedYet': '今日尚未打卡',
+    'chip.onLeave': '今日請假中',
+    'chip.holiday': '今日為假日',
+    'chip.unscheduled': '今日非排班日',
+    'chip.loadFail': '今日狀態載入失敗'
+  },
+  'en': {
+    'app.loadingName': 'Loading…', 'app.loading': '🔄 Verifying LINE identity…',
+    'app.loadingShort': 'Loading…', 'app.logout': 'Logout', 'app.lang': 'Language',
+    'app.role.superadmin': 'Super Admin', 'app.role.admin': 'Admin',
+    'app.role.manager': 'Manager', 'app.role.user': 'User', 'app.role.employee': 'Employee',
+    'bind.firstTime': 'First time here?', 'bind.note': 'Enter your AL-TRON account ID (NOT your clock-in device ID) to bind your LINE. You won\'t need this again.',
+    'bind.empId': 'AL-TRON Account', 'bind.submit': 'Bind', 'bind.submitting': 'Binding…',
+    'apply.tab': 'Apply', 'apply.loadingTypes': '⏳ Loading leave types…',
+    'apply.leaveType': 'Leave type', 'apply.startDate': 'Start date', 'apply.endDate': 'End date',
+    'apply.fullDay': 'Full day', 'apply.fullDayNote': ' (hours from shift schedule)',
+    'apply.startTime': 'Start time', 'apply.endTime': 'End time',
+    'apply.extraTitle': '📋 Additional info',
+    'apply.eventDate': 'Event date', 'apply.eventDateHint': 'Wedding / Funeral / Due date / Spouse delivery / Miscarriage / Prenatal',
+    'apply.pregnancyStage': 'Pregnancy stage',
+    'apply.preg.3m': '≥ 3 months (28 days)', 'apply.preg.2_3m': '2 – 3 months (7 days)', 'apply.preg.lt2m': '< 2 months (5 days)',
+    'apply.relation': 'Relation', 'apply.relativeName': 'Relative name',
+    'apply.reason': 'Reason', 'apply.proofFile': 'Proof file (optional; photo or file)',
+    'apply.takePhoto': '📷 Photo', 'apply.pickFile': '📁 File',
+    'apply.proofUrl': 'Proof URL (optional)', 'apply.proofNote': 'Proof note (optional)',
+    'apply.delegates': 'Delegates (up to 3)', 'apply.notSpecified': '— None —',
+    'apply.submit': 'Submit', 'apply.submitting': 'Submitting…',
+    'apply.success': '✅ Submitted! ID: ', 'apply.uploadFail': '⚠ Leave submitted but file upload failed. Use "Add proof" from history to retry.',
+    'apply.quotaInfo': 'Granted {g} / Used {u} / Remaining {r}',
+    'history.tab': 'History', 'history.title': 'My leave history', 'history.year': 'Year',
+    'history.empty': 'No records this year',
+    'history.status.approved': '✓ Approved', 'history.status.rejected': '✗ Rejected',
+    'history.status.cancelled': 'Cancelled', 'history.status.pending': '⏳ Pending',
+    'history.proof.pending': '📌 Awaiting proof', 'history.proof.submitted': '⏳ Under review',
+    'history.proof.verified': '✅ Verified', 'history.proof.rejected': '⚠ Proof rejected',
+    'history.addProof': '📎 Add proof',
+    'cal.tab': 'Calendar', 'cal.summary': 'Monthly stats',
+    'cal.workDays': 'Work', 'cal.leaveDays': 'Leave', 'cal.holidayDays': 'Holiday',
+    'cal.totalHours': 'Total hrs', 'cal.lateDays': 'Late', 'cal.absentDays': 'Absent',
+    'cal.status.normal': 'Normal', 'cal.status.leave': 'Leave', 'cal.status.late': 'Late',
+    'cal.status.absent': 'Absent', 'cal.status.holiday': 'Holiday',
+    'proof.title': '📎 Add proof', 'proof.fileLabel': 'File (optional)',
+    'proof.urlLabel': 'URL (optional)', 'proof.noteLabel': 'Note (optional)',
+    'proof.cancel': 'Cancel', 'proof.submit': 'Submit',
+    'proof.successWait': '✅ Submitted, awaiting admin review',
+    'rel.parent': 'Parent (8d)', 'rel.foster_parent': 'Foster parent (8d)', 'rel.step_parent': 'Step-parent (8d)',
+    'rel.spouse': 'Spouse (8d)', 'rel.grandparent': 'Grandparent (6d)', 'rel.child': 'Child (6d)',
+    'rel.spouse_parent': 'Spouse\'s parent (6d)', 'rel.spouse_foster_parent': 'Spouse\'s foster parent (6d)',
+    'rel.spouse_step_parent': 'Spouse\'s step-parent (6d)', 'rel.great_grandparent': 'Great-grandparent (3d)',
+    'rel.sibling': 'Sibling (3d)', 'rel.spouse_grandparent': 'Spouse\'s grandparent (3d)',
+    'app.daysUnit': 'd', 'app.hoursUnit': 'h',
+    'app.in': 'In', 'app.out': 'Out',
+    'app.sessionLost': 'Session expired, please refresh',
+    'app.fail': 'Failed', 'app.uploadFail': 'Upload failed',
+    'app.err.noLiffId': 'LIFF_ID not configured',
+    'app.err.sdkNotLoaded': 'LIFF SDK failed to load',
+    'app.err.noIdToken': 'No ID token',
+    'app.err.authFailed': 'Verification failed',
+    'app.err.bindRefetch': 'Bound but re-fetch failed, please refresh',
+    'apply.successHours': 'Hours: ',
+    'cal.dayMsg.shiftLine': '{name} ({start}~{end})',
+    'gate.title': 'HR System under testing',
+    'gate.body': 'Access to the HR/Attendance system is not yet enabled for your account. Please contact the administrator.',
+    // v1.0.6 Phase B-1: Today clock-in chip
+    'chip.loading': 'Loading today\'s status…',
+    'chip.clockedIn': 'Clock-in/out complete today',
+    'chip.clockedInOnly': 'Clocked in today',
+    'chip.dontForgetOut': 'Remember to clock out',
+    'chip.notClockedYet': 'Not yet clocked in today',
+    'chip.onLeave': 'On leave today',
+    'chip.holiday': 'Today is a holiday',
+    'chip.unscheduled': 'No shift scheduled today',
+    'chip.loadFail': 'Failed to load today\'s status'
+  },
+  'th': {
+    'app.loadingName': 'กำลังโหลด…', 'app.loading': '🔄 กำลังตรวจสอบ LINE…',
+    'app.loadingShort': 'กำลังโหลด…', 'app.logout': 'ออก', 'app.lang': 'ภาษา',
+    'app.role.superadmin': 'ผู้ดูแลระบบสูงสุด', 'app.role.admin': 'แอดมิน',
+    'app.role.manager': 'ผู้จัดการ', 'app.role.user': 'ผู้ใช้', 'app.role.employee': 'พนักงาน',
+    'bind.firstTime': 'ครั้งแรกใช่ไหม?', 'bind.note': 'กรอกบัญชีระบบ AL-TRON ของคุณ (ไม่ใช่รหัสเครื่องลงเวลา) เพื่อผูก LINE ครั้งหน้าไม่ต้องกรอกอีก',
+    'bind.empId': 'บัญชี AL-TRON', 'bind.submit': 'ผูกบัญชี', 'bind.submitting': 'กำลังผูก…',
+    'apply.tab': 'ลา', 'apply.loadingTypes': '⏳ กำลังโหลดประเภทการลา…',
+    'apply.leaveType': 'ประเภทการลา', 'apply.startDate': 'วันที่เริ่ม', 'apply.endDate': 'วันที่สิ้นสุด',
+    'apply.fullDay': 'ทั้งวัน', 'apply.fullDayNote': ' (ตามตารางกะ)',
+    'apply.startTime': 'เวลาเริ่ม', 'apply.endTime': 'เวลาสิ้นสุด',
+    'apply.extraTitle': '📋 ข้อมูลเพิ่มเติม',
+    'apply.eventDate': 'วันเหตุการณ์', 'apply.eventDateHint': 'แต่งงาน / งานศพ / กำหนดคลอด / คู่สมรสคลอด / แท้ง / ตรวจครรภ์',
+    'apply.pregnancyStage': 'ระยะตั้งครรภ์',
+    'apply.preg.3m': '≥ 3 เดือน (28 วัน)', 'apply.preg.2_3m': '2 – 3 เดือน (7 วัน)', 'apply.preg.lt2m': '< 2 เดือน (5 วัน)',
+    'apply.relation': 'ความสัมพันธ์', 'apply.relativeName': 'ชื่อญาติ',
+    'apply.reason': 'เหตุผล', 'apply.proofFile': 'ไฟล์หลักฐาน (ทางเลือก)',
+    'apply.takePhoto': '📷 ถ่ายรูป', 'apply.pickFile': '📁 เลือกไฟล์',
+    'apply.proofUrl': 'ลิงก์หลักฐาน (ทางเลือก)', 'apply.proofNote': 'หมายเหตุ (ทางเลือก)',
+    'apply.delegates': 'ผู้รักษาการแทน (สูงสุด 3)', 'apply.notSpecified': '— ไม่ระบุ —',
+    'apply.submit': 'ส่ง', 'apply.submitting': 'กำลังส่ง…',
+    'apply.success': '✅ ส่งแล้ว เลขที่: ', 'apply.uploadFail': '⚠ ส่งใบลาแล้ว แต่อัพโหลดไฟล์ล้มเหลว ใช้ "เพิ่มหลักฐาน" จากประวัติเพื่อลองอีกครั้ง',
+    'apply.quotaInfo': 'ให้สิทธิ์ {g} / ใช้ไป {u} / คงเหลือ {r}',
+    'history.tab': 'ประวัติ', 'history.title': 'ประวัติการลาของฉัน', 'history.year': 'ปี',
+    'history.empty': 'ไม่มีบันทึกในปีนี้',
+    'history.status.approved': '✓ อนุมัติ', 'history.status.rejected': '✗ ปฏิเสธ',
+    'history.status.cancelled': 'ยกเลิก', 'history.status.pending': '⏳ รอ',
+    'history.proof.pending': '📌 รอหลักฐาน', 'history.proof.submitted': '⏳ กำลังตรวจ',
+    'history.proof.verified': '✅ ผ่าน', 'history.proof.rejected': '⚠ หลักฐานถูกปฏิเสธ',
+    'history.addProof': '📎 เพิ่มหลักฐาน',
+    'cal.tab': 'ปฏิทิน', 'cal.summary': 'สถิติเดือน',
+    'cal.workDays': 'ทำงาน', 'cal.leaveDays': 'ลา', 'cal.holidayDays': 'หยุด',
+    'cal.totalHours': 'ชม.รวม', 'cal.lateDays': 'สาย', 'cal.absentDays': 'ขาด',
+    'cal.status.normal': 'ปกติ', 'cal.status.leave': 'ลา', 'cal.status.late': 'สาย',
+    'cal.status.absent': 'ขาด', 'cal.status.holiday': 'วันหยุด',
+    'proof.title': '📎 เพิ่มหลักฐาน', 'proof.fileLabel': 'ไฟล์ (ทางเลือก)',
+    'proof.urlLabel': 'ลิงก์ (ทางเลือก)', 'proof.noteLabel': 'หมายเหตุ (ทางเลือก)',
+    'proof.cancel': 'ยกเลิก', 'proof.submit': 'ส่ง',
+    'proof.successWait': '✅ ส่งแล้ว รอแอดมินตรวจ',
+    'rel.parent': 'พ่อแม่ (8 วัน)', 'rel.foster_parent': 'พ่อแม่บุญธรรม (8 วัน)', 'rel.step_parent': 'พ่อแม่เลี้ยง (8 วัน)',
+    'rel.spouse': 'คู่สมรส (8 วัน)', 'rel.grandparent': 'ปู่ย่าตายาย (6 วัน)', 'rel.child': 'ลูก (6 วัน)',
+    'rel.spouse_parent': 'พ่อแม่คู่สมรส (6 วัน)', 'rel.spouse_foster_parent': 'พ่อแม่บุญธรรมคู่สมรส (6 วัน)',
+    'rel.spouse_step_parent': 'พ่อแม่เลี้ยงคู่สมรส (6 วัน)', 'rel.great_grandparent': 'ทวด (3 วัน)',
+    'rel.sibling': 'พี่น้อง (3 วัน)', 'rel.spouse_grandparent': 'ปู่ย่าตายายคู่สมรส (3 วัน)',
+    'app.daysUnit': 'วัน', 'app.hoursUnit': 'ชม.',
+    'app.in': 'เข้า', 'app.out': 'ออก',
+    'app.sessionLost': 'เซสชันหมดอายุ กรุณารีเฟรช',
+    'app.fail': 'ล้มเหลว', 'app.uploadFail': 'อัปโหลดล้มเหลว',
+    'app.err.noLiffId': 'ยังไม่ได้ตั้ง LIFF_ID',
+    'app.err.sdkNotLoaded': 'LIFF SDK โหลดไม่สำเร็จ',
+    'app.err.noIdToken': 'ไม่มี ID token',
+    'app.err.authFailed': 'ตรวจสอบล้มเหลว',
+    'app.err.bindRefetch': 'ผูกบัญชีสำเร็จ แต่ดึงข้อมูลใหม่ล้มเหลว กรุณารีเฟรช',
+    'apply.successHours': 'ชั่วโมง: ',
+    'cal.dayMsg.shiftLine': '{name} ({start}~{end})',
+    'gate.title': 'ระบบลงเวลายังอยู่ในช่วงทดสอบ',
+    'gate.body': 'บัญชีของคุณยังไม่ได้รับสิทธิ์ใช้งานระบบลงเวลา หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
+    // v1.0.6 Phase B-1: chip สถานะวันนี้
+    'chip.loading': 'กำลังโหลดสถานะวันนี้…',
+    'chip.clockedIn': 'ลงเวลาเข้า/ออกครบแล้ววันนี้',
+    'chip.clockedInOnly': 'ลงเวลาเข้าแล้ววันนี้',
+    'chip.dontForgetOut': 'อย่าลืมลงเวลาออก',
+    'chip.notClockedYet': 'ยังไม่ได้ลงเวลาวันนี้',
+    'chip.onLeave': 'ลาวันนี้',
+    'chip.holiday': 'วันนี้เป็นวันหยุด',
+    'chip.unscheduled': 'ไม่มีกะวันนี้',
+    'chip.loadFail': 'โหลดสถานะวันนี้ล้มเหลว'
+  }
+};
+
+// === DB-driven entity name picker ===========================================
+// 跟 Portal 的 _locName 同一套：依當前語言挑 nameZh/nameEn/nameTh；DB 沒填則 fallback 內建 dict
+var STD_LEAVE_NAMES = {
+  annual:           { zh: '特別休假',   en: 'Annual Leave',          th: 'ลาพักผ่อนประจำปี' },
+  sick:             { zh: '普通病假',   en: 'Sick Leave',            th: 'ลาป่วย' },
+  personal:         { zh: '事假',      en: 'Personal Leave',        th: 'ลาธุระส่วนตัว' },
+  marriage:         { zh: '婚假',      en: 'Marriage Leave',        th: 'ลาแต่งงาน' },
+  bereavement:      { zh: '喪假',      en: 'Bereavement Leave',     th: 'ลาเพราะการตาย' },
+  injury:           { zh: '公傷病假',   en: 'Occupational Injury',   th: 'ลาเจ็บป่วยจากงาน' },
+  menstrual:        { zh: '生理假',    en: 'Menstrual Leave',       th: 'ลาเนื่องประจำเดือน' },
+  family:           { zh: '家庭照顧假', en: 'Family Care Leave',     th: 'ลาดูแลครอบครัว' },
+  parental:         { zh: '育嬰留停',   en: 'Parental Leave',        th: 'ลาดูแลบุตร' },
+  maternity:        { zh: '產假',      en: 'Maternity Leave',       th: 'ลาคลอด' },
+  paternity:        { zh: '陪產假',    en: 'Paternity Leave',       th: 'ลาบิดา' },
+  prenatal_checkup: { zh: '產檢假',    en: 'Prenatal Checkup',      th: 'ลาตรวจครรภ์' },
+  miscarriage:      { zh: '流產假',    en: 'Miscarriage Leave',     th: 'ลาแท้งบุตร' },
+  official:         { zh: '公假',      en: 'Official Leave',        th: 'ลาราชการ' }
+};
+var STD_SHIFT_NAMES = {
+  '2shift_day':     { zh: '2 班制 / 白班', en: '2-Shift Day',     th: 'กะ 2 ผลัด / กลางวัน' },
+  '2shift_night':   { zh: '2 班制 / 夜班', en: '2-Shift Night',   th: 'กะ 2 ผลัด / กลางคืน' },
+  '3shift_day':     { zh: '3 班制 / 白班', en: '3-Shift Day',     th: 'กะ 3 ผลัด / กลางวัน' },
+  '3shift_evening': { zh: '3 班制 / 中班', en: '3-Shift Evening', th: 'กะ 3 ผลัด / บ่าย' },
+  '3shift_night':   { zh: '3 班制 / 大夜', en: '3-Shift Night',   th: 'กะ 3 ผลัด / กลางคืน' }
+};
+function _locName(obj, kind) {
+  if (!obj) return '';
+  var lang = CURRENT_LANG;
+  var dbKey = (lang === 'zh-TW') ? 'nameZh' : (lang === 'en' ? 'nameEn' : 'nameTh');
+  if (obj[dbKey]) return obj[dbKey];
+  var id = obj.leaveId || obj.shiftId;
+  var dict = (kind === 'shift') ? STD_SHIFT_NAMES : STD_LEAVE_NAMES;
+  var fbKey = (lang === 'zh-TW') ? 'zh' : (lang === 'en' ? 'en' : 'th');
+  if (id && dict[id]) return dict[id][fbKey];
+  return obj.nameZh || id || '';
+}
+
+var CURRENT_LANG = (function() {
+  try { return localStorage.getItem('liff_lang') || 'zh-TW'; } catch (e) { return 'zh-TW'; }
+})();
+
+function t(key, params) {
+  var d = I18N_DICTS[CURRENT_LANG] || I18N_DICTS['zh-TW'];
+  var v = d[key];
+  if (v == null) v = I18N_DICTS['zh-TW'][key] || key;
+  if (params) {
+    for (var k in params) v = v.replace('{' + k + '}', params[k]);
+  }
+  return v;
+}
+
+function applyI18n() {
+  var els = document.querySelectorAll('[data-i18n]');
+  for (var i = 0; i < els.length; i++) {
+    var key = els[i].getAttribute('data-i18n');
+    els[i].textContent = t(key);
+  }
+}
+
+function changeLang(lang) {
+  CURRENT_LANG = lang;
+  try { localStorage.setItem('liff_lang', lang); } catch (e) {}
+  applyI18n();
+  // 重新渲染動態內容
+  if (APPLY_LEAVE_TYPES) renderApplyForm();
+  if (SESSION) {
+    setText('whoName', SESSION.nameZh || SESSION.employeeId);
+    // v1.0.8 修：拔掉 data-i18n，避免 renderApplyForm 末段 applyI18n 把 whoName 沖回「載入中…」
+    var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
+    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+  }
+  // 重 render 歷程 / 月曆 if 已載入
+  if (window._lastHistRequests) renderHistory(window._lastHistRequests);
+  if (window._calDays) loadCalendarTab(CAL_YM);
+  // v1.0.6 Phase B-1: chip 跟著語言切
+  if (window._todayChipState) renderTodayChip(window._todayChipState);
+}
+
+// === helpers ==========================================================
+function $(id) { return document.getElementById(id); }
+function show(id) { var el = $(id); if (el) el.classList.remove('hidden'); }
+function hide(id) { var el = $(id); if (el) el.classList.add('hidden'); }
+function setText(id, text) { var el = $(id); if (el) el.textContent = text || ''; }
+var DEBUG = (typeof location !== 'undefined') && location.search.indexOf('debug=1') >= 0;
+if (DEBUG) { var _dl = document.getElementById && document.getElementById('dbgLog'); if (_dl) _dl.style.display = 'block'; }
+function dbg(line) {
+  if (!DEBUG) return;
+  var el = $('dbgLog'); if (!el) return;
+  var t2 = new Date(); var hh = String(t2.getHours()).padStart(2,'0'), mm = String(t2.getMinutes()).padStart(2,'0'), ss = String(t2.getSeconds()).padStart(2,'0');
+  el.textContent += '[' + hh + ':' + mm + ':' + ss + '] ' + line + '\n';
+}
+function showError(msg) {
+  hide('loadingPane'); hide('bindPane'); hide('mainPane');
+  var el = $('errorPane'); el.classList.remove('hidden'); el.innerHTML = '❌ ' + msg;
+}
+
+// === RPC ==============================================================
+var ACTION_MAP = {
+  'webLiffExchangeToken':            { action: 'exchangeToken',     params: ['idToken'] },
+  'webLiffInit':                     { action: 'init',              params: ['idToken'] },
+  'webLiffBindEmployee':             { action: 'bindEmployee',      params: ['idToken', 'employeeId'] },
+  'webLiffSubmitLeave':              { action: 'submitLeave',       params: ['idToken', 'leaveData'] },
+  'webLiffListLeaveTypesForEmployee':{ action: 'listLeaveTypes',    params: ['idToken'] },
+  'webLiffListEmployeesForDelegate': { action: 'listEmployees',     params: ['idToken'] },
+  'webLiffMyLeaveHistory':           { action: 'myLeaveHistory',    params: ['idToken', 'year'] },
+  'webLiffMonthlyAttendance':        { action: 'monthlyAttendance', params: ['idToken', 'yearMonth'] },
+  'webLiffTodayStatus':              { action: 'todayStatus',       params: ['idToken'] },
+  'webLiffUpdateProofData':          { action: 'updateProofData',   params: ['idToken', 'requestId', 'proofData'] },
+  'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] }
+};
+
+async function rpc(fn, args) {
+  var mapping = ACTION_MAP[fn];
+  if (!mapping) throw new Error('Unknown RPC: ' + fn);
+  var body = { action: mapping.action };
+  (args || []).forEach(function(v, i) { body[mapping.params[i]] = v; });
+  var resp = await fetch(GAS_URL + '?api=liff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return await resp.json();
+}
+
+// === file → base64 ====================================================
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var dataUrl = e.target.result;
+        var base64 = dataUrl.split(',')[1];
+        resolve(base64);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// === auth flow ========================================================
+window.addEventListener('DOMContentLoaded', async function() {
+  // 初始 i18n + 語系下拉
+  applyI18n();
+  $('langSelect').value = CURRENT_LANG;
+
+  if (!LIFF_ID) { showError(t('app.err.noLiffId')); return; }
+  try {
+    dbg('LIFF_ID=' + LIFF_ID); dbg('host=' + location.host);
+    dbg('typeof liff=' + typeof liff);
+    if (typeof liff === 'undefined') { showError(t('app.err.sdkNotLoaded')); return; }
+    dbg('liff.init() start');
+    await liff.init({ liffId: LIFF_ID });
+    dbg('liff.init() OK');
+    if (!liff.isLoggedIn()) { dbg('not logged in → liff.login()'); try { liff.login(); } catch(le){} return; }
+    var idToken = liff.getIDToken();
+    if (!idToken) { showError(t('app.err.noIdToken')); return; }
+
+    // v1.0.11：從 4 RPC 改 1 RPC（webLiffInit 一發回 session + leaveTypes + todayStatus）
+    // 後端 v1.0.92 給 _verifyLiffIdToken_ 加了 CacheService，init 內部三個 sub-call 只 verify 1 次
+    var t0 = Date.now();
+    var profilePromise = liff.getProfile();
+    APPLY_LEAVE_TYPES_LOADING = true;
+    var initPromise = rpc('webLiffInit', [idToken]);
+
+    var profile = await profilePromise;
+    setText('avatar', (profile.displayName || '?').substring(0, 1));
+    var res = await initPromise;
+    dbg('init done in ' + (Date.now() - t0) + 'ms');
+    APPLY_LEAVE_TYPES_LOADING = false;
+
+    if (!res || !res.success) {
+      if (res && res.errorCode === 'BIND_NEEDED') {
+        hide('loadingPane'); show('bindPane');
+        setText('whoName', profile.displayName || 'LINE');
+        setText('whoId', t('history.proof.pending'));
+        SESSION = { idToken: idToken, displayName: profile.displayName };
+        return;
+      }
+      // v1.0.88: Portal 沒授權 hrm-attendance → 顯示 gate
+      if (res && res.errorCode === 'HRM_NOT_OPEN_YET') {
+        hide('loadingPane'); show('gatePane');
+        return;
+      }
+      showError((res && res.message) || t('app.err.authFailed'));
+      return;
+    }
+    // v1.0.11: init payload = { session, leaveTypes, year, todayStatus }
+    SESSION = res.data.session;
+    SESSION.idToken = idToken;
+    setText('whoName', SESSION.nameZh || SESSION.employeeId);
+    // v1.0.8 修：拔掉 data-i18n，避免 renderApplyForm 末段 applyI18n 把 whoName 沖回「載入中…」
+    var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
+    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+    hide('loadingPane'); show('mainPane');
+
+    // chip：init 已內含 todayStatus，直接 render（不用再 fire RPC）
+    if (res.data.todayStatus) {
+      loadTodayChip(Promise.resolve({ success: true, data: res.data.todayStatus }));
+    } else {
+      loadTodayChip();  // fallback — todayStatus 沒回（後端例外時）就重 fetch
+    }
+
+    // leaveTypes：init 已含
+    if (res.data.leaveTypes) {
+      APPLY_LEAVE_TYPES = res.data.leaveTypes;
+      renderApplyForm();
+    }
+
+    // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
+    if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
+      $('applyFormLoading').textContent = '❌ load fail';
+      $('applyFormLoading').className = 'alert alert-danger';
+    }
+
+  } catch (e) {
+    showError('init: ' + (e && e.message || e));
+  }
+});
+
+async function onBind(btn) {
+  var empId = ($('bindEmpId').value || '').trim();
+  if (!empId) { alert(t('bind.empId')); return; }
+  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
+  btn.disabled = true; btn.textContent = t('bind.submitting');
+  try {
+    var res = await rpc('webLiffBindEmployee', [SESSION.idToken, empId]);
+    if (!res || !res.success) {
+      // v1.0.88: Portal 沒授權 hrm-attendance → 顯示 gate（不寫 line_user_id）
+      if (res && res.errorCode === 'HRM_NOT_OPEN_YET') {
+        hide('bindPane'); show('gatePane');
+        return;
+      }
+      alert((res && res.message) || 'fail');
+      btn.disabled = false; btn.textContent = t('bind.submit'); return;
+    }
+    // v1.0.11: bind 完用 webLiffInit 一發拿 session + leaveTypes + todayStatus
+    APPLY_LEAVE_TYPES_LOADING = true;
+    var ex = await rpc('webLiffInit', [SESSION.idToken]);
+    APPLY_LEAVE_TYPES_LOADING = false;
+    if (!ex || !ex.success) { alert(t('app.err.bindRefetch')); return; }
+    SESSION = ex.data.session;
+    SESSION.idToken = (window.liff && liff.getIDToken) ? liff.getIDToken() : '';
+    setText('whoName', SESSION.nameZh || SESSION.employeeId);
+    var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
+    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+    hide('bindPane'); show('mainPane');
+    if (ex.data.todayStatus) {
+      loadTodayChip(Promise.resolve({ success: true, data: ex.data.todayStatus }));
+    } else {
+      loadTodayChip();
+    }
+    if (ex.data.leaveTypes) {
+      APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
+    }
+  } catch (e) {
+    alert('error: ' + (e && e.message || e));
+    btn.disabled = false; btn.textContent = t('bind.submit');
+  }
+}
+
+function onLogout() { try { liff.logout(); } catch (e) {} location.reload(); }
+
+function switchTab(name) {
+  ['apply', 'history', 'calendar'].forEach(function(n) {
+    var btn = $('tabBtn' + n.charAt(0).toUpperCase() + n.slice(1));
+    var pane = $('pane' + n.charAt(0).toUpperCase() + n.slice(1));
+    if (btn) btn.classList.toggle('active', n === name);
+    if (pane) pane.classList.toggle('active', n === name);
+  });
+  if (name === 'apply') loadApplyTabIfNeeded();
+  if (name === 'history') loadHistoryTab();
+  if (name === 'calendar') loadCalendarTab();
+}
+
+// === apply form =======================================================
+var APPLY_LEAVE_TYPES = null;
+var APPLY_LEAVE_TYPES_LOADING = false;
+var DELEGATE_LIST_LOADED = false;
+var APP_SELECTED_FILE = null;          // 共用：拍照/選檔都寫進這個
+var PROOF_MODAL_SELECTED_FILE = null;  // 補證明 modal 用
+
+function onAppFileChosen(input) {
+  var f = input.files && input.files[0]; if (!f) return;
+  APP_SELECTED_FILE = f;
+  var el = $('appProofFileName'); if (el) el.textContent = '✓ ' + f.name;
+}
+function onProofModalFileChosen(input) {
+  var f = input.files && input.files[0]; if (!f) return;
+  PROOF_MODAL_SELECTED_FILE = f;
+  var el = $('proofModalFileName'); if (el) el.textContent = '✓ ' + f.name;
+}
+var REL_KEYS = ['parent','foster_parent','step_parent','spouse','grandparent','child',
+                'spouse_parent','spouse_foster_parent','spouse_step_parent',
+                'great_grandparent','sibling','spouse_grandparent'];
+
+async function loadApplyTabIfNeeded() {
+  if (!SESSION || !SESSION.idToken) return;
+  if (APPLY_LEAVE_TYPES) return;
+  if (APPLY_LEAVE_TYPES_LOADING) return;
+  APPLY_LEAVE_TYPES_LOADING = true;
+  try {
+    var res = await rpc('webLiffListLeaveTypesForEmployee', [SESSION.idToken]);
+    if (!res || !res.success) {
+      $('applyFormLoading').textContent = '❌ ' + ((res && res.message) || 'fail');
+      $('applyFormLoading').className = 'alert alert-danger'; return;
+    }
+    APPLY_LEAVE_TYPES = res.data.leaveTypes || []; renderApplyForm();
+  } catch (e) {
+    $('applyFormLoading').textContent = '❌ ' + (e.message || e);
+    $('applyFormLoading').className = 'alert alert-danger';
+  } finally { APPLY_LEAVE_TYPES_LOADING = false; }
+}
+
+function renderApplyForm() {
+  // 假別 dropdown
+  var sel = $('appLeaveId'); sel.innerHTML = '';
+  APPLY_LEAVE_TYPES.forEach(function(lt) {
+    var opt = document.createElement('option');
+    opt.value = lt.leaveId;
+    var showBal = (lt.showBalance !== false);
+    var rem = (showBal && lt.remaining != null) ? '（' + lt.remaining + ' / ' + lt.granted + ' ' + t('app.daysUnit') + '）' : '';
+    opt.textContent = _locName(lt, 'leave') + rem;
+    opt.dataset.granted = lt.granted;
+    opt.dataset.used = lt.used;
+    opt.dataset.remaining = lt.remaining;
+    opt.dataset.showBalance = String(showBal);
+    sel.appendChild(opt);
+  });
+  // 親屬下拉
+  var relSel = $('appRelation'); relSel.innerHTML = '';
+  REL_KEYS.forEach(function(k) {
+    var o = document.createElement('option');
+    o.value = k; o.textContent = t('rel.' + k);
+    relSel.appendChild(o);
+  });
+  // 預設日期
+  var today = new Date();
+  var ymd = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  if (!$('appStartDate').value) $('appStartDate').value = ymd;
+  if (!$('appEndDate').value) $('appEndDate').value = ymd;
+  updateQuotaInfo(); updateExtraFields();
+  hide('applyFormLoading'); show('applyFormContainer');
+  loadEmployeesForDelegate();
+  applyI18n();
+}
+
+function updateQuotaInfo() {
+  var sel = $('appLeaveId'); if (!sel.options.length) return;
+  var opt = sel.options[sel.selectedIndex];
+  if (opt.dataset.showBalance === 'false') { $('appQuotaInfo').textContent = ''; return; }
+  $('appQuotaInfo').textContent = t('apply.quotaInfo', {
+    g: opt.dataset.granted || 0, u: opt.dataset.used || 0, r: opt.dataset.remaining || 0
+  });
+}
+
+function updateExtraFields() {
+  var lid = $('appLeaveId').value;
+  var isBer = (lid === 'bereavement'), isMis = (lid === 'miscarriage');
+  var needEvent = isBer || lid==='marriage' || lid==='maternity' || lid==='paternity' || lid==='prenatal_checkup' || isMis;
+  function tog(id, on) { var el = $(id); if (!el) return; if (on) el.classList.remove('hidden'); else el.classList.add('hidden'); }
+  tog('appEventDateGroup', needEvent);
+  tog('appPregnancyStageGroup', isMis);
+  tog('appRelationGroup', isBer);
+  tog('appRelNameGroup', isBer);
+  tog('appExtraCard', needEvent || isBer || isMis);
+}
+
+function onStartDateChanged() {
+  var s = $('appStartDate').value;
+  var e = $('appEndDate');
+  if (s && e && (!e.value || e.value < s)) e.value = s;
+}
+
+function onFullDayToggle() {
+  var fullDay = $('appFullDay').checked;
+  var range = $('appTimeRange');
+  if (!range) return;
+  if (fullDay) range.classList.add('hidden');
+  else { range.classList.remove('hidden'); range.style.display = 'grid'; }
+}
+
+function loadEmployeesForDelegate() {
+  if (DELEGATE_LIST_LOADED) return;
+  if (!SESSION || !SESSION.idToken) return;
+  DELEGATE_LIST_LOADED = true;
+  rpc('webLiffListEmployeesForDelegate', [SESSION.idToken]).then(function(res) {
+    if (!res || !res.success || !res.data || !res.data.employees) return;
+    var emps = res.data.employees;
+    ['appDelegate1', 'appDelegate2', 'appDelegate3'].forEach(function(id) {
+      var sel = $(id); if (!sel) return;
+      emps.forEach(function(e) {
+        var opt = document.createElement('option');
+        opt.value = e.employeeId;
+        opt.textContent = e.nameZh ? (e.employeeId + ' ' + e.nameZh) : e.employeeId;
+        sel.appendChild(opt);
+      });
+    });
+  }).catch(function() {});
+}
+
+async function onSubmitLeave(btn) {
+  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
+  var leaveId = $('appLeaveId').value;
+  var startDate = $('appStartDate').value;
+  var endDate = $('appEndDate').value;
+  var fullDay = $('appFullDay').checked;
+  var startTime = fullDay ? '' : $('appStartTime').value;
+  var endTime = fullDay ? '' : $('appEndTime').value;
+  var reason = ($('appReason').value || '').trim();
+  if (!leaveId || !startDate || !endDate) { alert(t('apply.startDate')); return; }
+  if (!reason) { alert(t('apply.reason')); return; }
+  if (endDate < startDate) { alert(t('apply.startDate')); return; }
+  var eventDate = $('appEventDate') ? $('appEventDate').value : '';
+  var pregnancyStage = $('appPregnancyStage') ? $('appPregnancyStage').value : '';
+  var relation = $('appRelation') ? $('appRelation').value : '';
+  var relativeName = $('appRelativeName') ? ($('appRelativeName').value || '').trim() : '';
+  var proofUrl = $('appProofUrl') ? ($('appProofUrl').value || '').trim() : '';
+  var proofNote = $('appProofNote') ? ($('appProofNote').value || '').trim() : '';
+  var proofFile = APP_SELECTED_FILE; // 拍照或選檔都寫進這個
+  var d1 = $('appDelegate1') ? $('appDelegate1').value : '';
+  var d2 = $('appDelegate2') ? $('appDelegate2').value : '';
+  var d3 = $('appDelegate3') ? $('appDelegate3').value : '';
+  var delegates = [d1, d2, d3].filter(function(x){ return x; }).join(',');
+  if (leaveId === 'bereavement') {
+    if (!relation) { alert(t('apply.relation')); return; }
+    if (!relativeName) { alert(t('apply.relativeName')); return; }
+  }
+  if (['bereavement','marriage','maternity','paternity','prenatal_checkup','miscarriage'].indexOf(leaveId) >= 0) {
+    if (!eventDate) { alert(t('apply.eventDate')); return; }
+  }
+  var proofData = {};
+  if (proofUrl) proofData.link = proofUrl;
+  if (proofNote) proofData.note = proofNote;
+
+  btn.disabled = true; btn.textContent = t('apply.submitting');
+  var resBox = $('appResult'); resBox.innerHTML = '';
+  try {
+    var res = await rpc('webLiffSubmitLeave', [SESSION.idToken, {
+      leaveId: leaveId, startDate: startDate, startTime: startTime,
+      endDate: endDate, endTime: endTime, reason: reason,
+      proofUrl: proofUrl, proofData: proofData, delegates: delegates,
+      relation: (leaveId === 'bereavement') ? relation : '',
+      relativeName: (leaveId === 'bereavement') ? relativeName : '',
+      eventDate: (['bereavement','marriage','maternity','paternity','prenatal_checkup','miscarriage'].indexOf(leaveId) >= 0) ? eventDate : '',
+      pregnancyStage: (leaveId === 'miscarriage') ? pregnancyStage : ''
+    }]);
+    btn.disabled = false; btn.textContent = t('apply.submit');
+    if (!res || !res.success) {
+      resBox.innerHTML = '<div class="alert alert-danger">❌ ' + ((res && res.message) || 'fail') + '</div>'; return;
+    }
+    var d = res.data;
+    var msg = t('apply.success') + d.requestId + '<br>' + t('apply.successHours') + d.hoursTotal;
+    resBox.innerHTML = '<div class="alert alert-success">' + msg + '</div>';
+
+    // 有檔案 → 上傳
+    if (proofFile) {
+      try {
+        var b64 = await fileToBase64(proofFile);
+        var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, d.requestId, {
+          base64: b64, fileName: proofFile.name, mimeType: proofFile.type || 'application/octet-stream'
+        }]);
+        if (upRes && upRes.success) {
+          // 把 fileId/Url merge 進 proofData，更新 proof_data_json
+          var merged = Object.assign({}, proofData, {
+            fileId: upRes.data.fileId, fileUrl: upRes.data.fileUrl, fileName: upRes.data.fileName
+          });
+          await rpc('webLiffUpdateProofData', [SESSION.idToken, d.requestId, merged]);
+        } else {
+          resBox.innerHTML += '<div class="alert alert-warning">' + t('apply.uploadFail') + '</div>';
+        }
+      } catch (upErr) {
+        resBox.innerHTML += '<div class="alert alert-warning">' + t('apply.uploadFail') + ' (' + upErr.message + ')</div>';
+      }
+    }
+
+    // reset form
+    $('appReason').value = ''; $('appProofUrl').value = ''; $('appProofNote').value = '';
+    if ($('appProofFile')) $('appProofFile').value = '';
+    if ($('appProofCamera')) $('appProofCamera').value = '';
+    APP_SELECTED_FILE = null;
+    if ($('appProofFileName')) $('appProofFileName').textContent = '';
+    APPLY_LEAVE_TYPES = null;
+    setTimeout(loadApplyTabIfNeeded, 500);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = t('apply.submit');
+    resBox.innerHTML = '<div class="alert alert-danger">❌ ' + (e.message || e) + '</div>';
+  }
+}
+
+// === history ==========================================================
+var HIST_YEAR_INITED = false;
+async function loadHistoryTab(forceYear) {
+  if (!SESSION || !SESSION.idToken) return;
+  if (!HIST_YEAR_INITED) {
+    var sel = $('histYear');
+    var thisYear = new Date().getFullYear();
+    for (var y = thisYear; y >= thisYear - 4; y--) {
+      var opt = document.createElement('option');
+      opt.value = y; opt.textContent = y + ' ' + t('history.year');
+      sel.appendChild(opt);
+    }
+    sel.onchange = function() { loadHistoryTab(Number(this.value)); };
+    HIST_YEAR_INITED = true;
+  }
+  var year = forceYear || Number($('histYear').value);
+  $('histContainer').className = 'empty';
+  $('histContainer').textContent = t('app.loadingShort');
+  try {
+    var res = await rpc('webLiffMyLeaveHistory', [SESSION.idToken, year]);
+    if (!res || !res.success) {
+      $('histContainer').innerHTML = '<div class="alert alert-danger">' + ((res && res.message) || 'fail') + '</div>';
+      $('histContainer').className = ''; return;
+    }
+    window._lastHistRequests = res.data.requests || [];
+    renderHistory(window._lastHistRequests);
+  } catch (e) {
+    $('histContainer').innerHTML = '<div class="alert alert-danger">' + (e.message || e) + '</div>';
+    $('histContainer').className = '';
+  }
+}
+
+function renderHistory(requests) {
+  var box = $('histContainer'); box.className = '';
+  if (!requests.length) { box.innerHTML = '<div class="empty">' + t('history.empty') + '</div>'; return; }
+  var html = '';
+  requests.forEach(function(r) {
+    var statusColor, statusText;
+    if (r.status === 'approved') { statusColor = '#2e7d32'; statusText = t('history.status.approved'); }
+    else if (r.status === 'rejected') { statusColor = '#c82333'; statusText = t('history.status.rejected'); }
+    else if (r.status === 'cancelled') { statusColor = '#888'; statusText = t('history.status.cancelled'); }
+    else { statusColor = '#f57c00'; statusText = t('history.status.pending'); }
+    var subBadge = '';
+    var needProof = (r.proofStatus === 'pending_proof' || r.proofStatus === 'rejected_at_review');
+    if (r.status === 'approved' && r.proofStatus) {
+      if (r.proofStatus === 'pending_proof') subBadge = '<div style="font-size:11px;color:#ff9800;">' + t('history.proof.pending') + '</div>';
+      else if (r.proofStatus === 'submitted') subBadge = '<div style="font-size:11px;color:#2196f3;">' + t('history.proof.submitted') + '</div>';
+      else if (r.proofStatus === 'verified') subBadge = '<div style="font-size:11px;color:#4caf50;">' + t('history.proof.verified') + '</div>';
+      else if (r.proofStatus === 'rejected_at_review') subBadge = '<div style="font-size:11px;color:#f44336;">' + t('history.proof.rejected') + '</div>';
+    }
+    if (needProof) {
+      subBadge += '<button onclick="openProofModal(\'' + r.requestId + '\')" style="margin-top:6px;padding:6px 10px;font-size:12px;border:1px solid #06C755;background:white;color:#06C755;border-radius:5px;cursor:pointer;">' + t('history.addProof') + '</button>';
+    }
+    html += '<div class="card" style="margin-bottom:8px;padding:10px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<div><strong style="font-size:14px;">' + _locName({leaveId: r.leaveId}, 'leave') + '</strong><span style="font-size:11px;color:#888;margin-left:6px;">' + r.hoursTotal + ' ' + t('app.hoursUnit') + '</span></div>';
+    html += '<div style="color:' + statusColor + ';font-weight:600;font-size:13px;">' + statusText + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:12px;color:#555;">' + r.startDate + (r.startTime ? ' ' + r.startTime : '') + ' ~ ' + r.endDate + (r.endTime ? ' ' + r.endTime : '') + '</div>';
+    if (r.reason) html += '<div style="font-size:11px;color:#666;margin-top:4px;">' + t('apply.reason') + '：' + escapeHtml(r.reason) + '</div>';
+    html += subBadge;
+    html += '</div>';
+  });
+  box.innerHTML = html;
+}
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// === calendar =========================================================
+var CAL_YM = null;
+function changeMonth(delta) {
+  if (!CAL_YM) return;
+  var parts = CAL_YM.split('-');
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1 + delta, 1);
+  CAL_YM = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  loadCalendarTab(CAL_YM);
+}
+async function loadCalendarTab(yearMonth) {
+  if (!SESSION || !SESSION.idToken) return;
+  if (!CAL_YM) { var now = new Date(); CAL_YM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'); }
+  if (yearMonth) CAL_YM = yearMonth;
+  setText('calMonthLabel', CAL_YM);
+  // v1.0.6 Phase B-1: 同月 cache 命中直接渲（chip 啟動時已 fetch 當月）
+  if (window._calCache && window._calCache[CAL_YM]) {
+    renderCalendar(window._calCache[CAL_YM]);
+    return;
+  }
+  $('calContainer').className = 'empty';
+  $('calContainer').textContent = t('app.loadingShort');
+  try {
+    var res = await rpc('webLiffMonthlyAttendance', [SESSION.idToken, CAL_YM]);
+    if (!res || !res.success) {
+      $('calContainer').innerHTML = '<div class="alert alert-danger">' + ((res && res.message) || 'fail') + '</div>';
+      $('calContainer').className = ''; return;
+    }
+    if (!window._calCache) window._calCache = {};
+    window._calCache[CAL_YM] = res.data;
+    renderCalendar(res.data);
+  } catch (e) {
+    $('calContainer').innerHTML = '<div class="alert alert-danger">' + (e.message || e) + '</div>';
+    $('calContainer').className = '';
+  }
+}
+function renderCalendar(data) {
+  var box = $('calContainer'); box.className = '';
+  var days = data.days || [];
+  if (!days.length) { box.innerHTML = '<div class="empty">' + t('history.empty') + '</div>'; return; }
+  var firstDay = new Date(days[0].date);
+  var startWeekday = firstDay.getDay();
+  var wkDays = (CURRENT_LANG === 'en') ? ['Su','Mo','Tu','We','Th','Fr','Sa'] :
+               (CURRENT_LANG === 'th') ? ['อา','จ','อ','พ','พฤ','ศ','ส'] :
+               ['日','一','二','三','四','五','六'];
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;color:#888;margin-bottom:4px;">';
+  wkDays.forEach(function(w){ html += '<div>' + w + '</div>'; });
+  html += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
+  for (var p = 0; p < startWeekday; p++) html += '<div></div>';
+  days.forEach(function(d) {
+    var bg = '#FFFFFF', col = '#222', icon = '';
+    if (d.status === 'leave') { bg = '#FBEAF0'; col = '#4B1528'; icon = '🏖'; }
+    else if (d.status === 'holiday') { bg = '#F5F5F5'; col = '#666'; }
+    else if (d.status === 'unscheduled') { bg = '#FAFAFA'; col = '#999'; }
+    else if (d.status === 'late') { bg = '#FFF7E6'; col = '#854F0B'; icon = '⏰'; }
+    else if (d.status === 'normal') { bg = '#E8F5E9'; col = '#1B5E20'; icon = '✓'; }
+    else if (d.status === 'absent') { bg = '#FCEBEB'; col = '#501313'; icon = '✗'; }
+    var dayNum = Number(d.date.split('-')[2]);
+    html += '<div onclick="onCalDayClick(\'' + d.date + '\')" style="background:' + bg + ';color:' + col + ';padding:6px 2px;border-radius:4px;cursor:pointer;font-size:11px;min-height:44px;">';
+    html += '<div style="font-weight:600;font-size:13px;">' + dayNum + '</div>';
+    if (icon) html += '<div style="font-size:11px;">' + icon + '</div>';
+    if (d.actualIn) html += '<div style="font-size:9px;">' + d.actualIn + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  var s = data.summary || {};
+  html += '<div style="margin-top:14px;padding:10px;background:white;border-radius:8px;border:1px solid #e6e8eb;font-size:12px;line-height:1.7em;">';
+  html += '<strong>' + t('cal.summary') + '</strong><br>';
+  html += t('cal.workDays') + ' ' + (s.workDays || 0) + ' ｜ ' + t('cal.leaveDays') + ' ' + (s.leaveDays || 0) + ' ｜ ' + t('cal.holidayDays') + ' ' + (s.holidayDays || 0) + '<br>';
+  html += t('cal.totalHours') + ' ' + (s.totalWorkHours || 0) + ' ｜ ' + t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
+  html += '</div>';
+  html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
+  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
+    html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</span>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+  window._calDays = days;
+}
+function onCalDayClick(date) {
+  if (!window._calDays) return;
+  var d = window._calDays.find(function(x){ return x.date === date; });
+  if (!d) return;
+  var msg = date + '（' + d.weekday + '）\n\n' + (d.statusLabel || d.status);
+  if (d.shiftName || d.shiftNameZh || d.shiftId) {
+    var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
+    msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
+  }
+  if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
+  if (d.actualOut) msg += '\n' + t('app.out') + ': ' + d.actualOut;
+  alert(msg);
+}
+
+// === today chip (v1.0.6 Phase B-1) ====================================
+// 設計：
+//   - auth 後背景 fire webLiffMonthlyAttendance(當月) → 找 today → 算 chip 狀態
+//   - 同步把整月 response cache 進 window._calCache[YM]，月曆 tab 直接複用
+//   - chip 狀態：clockedIn / clockedInOnly / notClockedYet / onLeave / holiday / unscheduled
+//   - 不顯示實際打卡時間（符合 Phase B 規範：員工面只顯示 ✅/⚠）
+//   - 語言切換時 renderTodayChip 重跑（state 存在 window._todayChipState）
+async function loadTodayChip(prefiredPromise) {
+  // v1.0.10: 改用 webLiffTodayStatus 輕量 RPC（回傳 {date, status, hasIn, hasOut, ...}，非整月）
+  try {
+    var res;
+    if (prefiredPromise) {
+      res = await prefiredPromise;
+    } else {
+      if (!SESSION || !SESSION.idToken) return;
+      res = await rpc('webLiffTodayStatus', [SESSION.idToken]);
+    }
+    if (!res || !res.success || !res.data) {
+      renderTodayChip({ kind: 'fail' });
+      return;
+    }
+    var today = res.data;  // { date, status, hasIn, hasOut, isHoliday, holidayName, hasSchedule }
+    var hasIn = !!today.hasIn;
+    var hasOut = !!today.hasOut;
+    var state;
+    if (today.status === 'leave')        state = { kind: 'leave' };
+    else if (today.status === 'holiday') state = { kind: 'holiday' };
+    else if (today.status === 'unscheduled') {
+      // 無排班 fallback：有打卡 → ✅；沒打卡 → 真的非排班日
+      if (hasIn && hasOut)      state = { kind: 'clockedIn' };
+      else if (hasIn && !hasOut) state = { kind: 'clockedInOnly' };
+      else                       state = { kind: 'unscheduled' };
+    }
+    else if (today.status === 'no_data') state = { kind: 'notClockedYet' };
+    else if (hasIn && hasOut)            state = { kind: 'clockedIn' };          // normal / late
+    else if (hasIn && !hasOut)           state = { kind: 'clockedInOnly' };       // absent / 上班中
+    else                                  state = { kind: 'notClockedYet' };
+    renderTodayChip(state);
+  } catch (e) {
+    dbg('chip load fail: ' + (e && e.message || e));
+    renderTodayChip({ kind: 'fail' });
+  }
+}
+
+function renderTodayChip(state) {
+  window._todayChipState = state;
+  var el = $('todayChip');
+  if (!el) return;
+  // reset classes
+  el.className = 'today-chip';
+  var icon = '', cssCls = '', msgKey = '', subKey = '';
+  switch (state.kind) {
+    case 'clockedIn':      icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedIn'; break;
+    case 'clockedInOnly':  icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedInOnly'; subKey = 'chip.dontForgetOut'; break;
+    case 'notClockedYet':  icon = '⚠'; cssCls = 'chip-warn';    msgKey = 'chip.notClockedYet'; break;
+    case 'onLeave':
+    case 'leave':          icon = '🏖'; cssCls = 'chip-leave';   msgKey = 'chip.onLeave'; break;
+    case 'holiday':        icon = '🌟'; cssCls = 'chip-holiday'; msgKey = 'chip.holiday'; break;
+    case 'unscheduled':    icon = '—'; cssCls = 'chip-muted';   msgKey = 'chip.unscheduled'; break;
+    case 'fail':           icon = '⚠'; cssCls = 'chip-muted';   msgKey = 'chip.loadFail'; break;
+    default:               icon = '⏳'; cssCls = 'chip-loading'; msgKey = 'chip.loading';
+  }
+  el.classList.add(cssCls);
+  var html = '<span class="chip-icon">' + icon + '</span>'
+           + '<span class="chip-msg">' + escapeHtml(t(msgKey)) + '</span>';
+  if (subKey) html += '<span class="chip-sub">' + escapeHtml(t(subKey)) + '</span>';
+  el.innerHTML = html;
+}
+
+// === proof modal (補證明) =============================================
+var PROOF_MODAL_REQID = null;
+function openProofModal(requestId) {
+  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
+  PROOF_MODAL_REQID = requestId;
+  PROOF_MODAL_SELECTED_FILE = null;
+  if ($('proofModalFile')) $('proofModalFile').value = '';
+  if ($('proofModalCamera')) $('proofModalCamera').value = '';
+  $('proofModalUrl').value = '';
+  $('proofModalNote').value = '';
+  if ($('proofModalFileName')) $('proofModalFileName').textContent = '';
+  $('proofModal').classList.remove('hidden');
+}
+function closeProofModal() {
+  $('proofModal').classList.add('hidden');
+  PROOF_MODAL_REQID = null;
+  PROOF_MODAL_SELECTED_FILE = null;
+}
+async function submitProofModal(btn) {
+  if (!PROOF_MODAL_REQID) return;
+  var url = ($('proofModalUrl').value || '').trim();
+  var note = ($('proofModalNote').value || '').trim();
+  var file = PROOF_MODAL_SELECTED_FILE;
+  if (!url && !note && !file) { alert(t('proof.fileLabel')); return; }
+  btn.disabled = true;
+  try {
+    var proofData = {};
+    if (url) proofData.link = url;
+    if (note) proofData.note = note;
+    if (file) {
+      var b64 = await fileToBase64(file);
+      var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, PROOF_MODAL_REQID, {
+        base64: b64, fileName: file.name, mimeType: file.type || 'application/octet-stream'
+      }]);
+      if (upRes && upRes.success) {
+        proofData.fileId = upRes.data.fileId;
+        proofData.fileUrl = upRes.data.fileUrl;
+        proofData.fileName = upRes.data.fileName;
+      } else {
+        alert((upRes && upRes.message) || 'upload fail'); btn.disabled = false; return;
+      }
+    }
+    var res = await rpc('webLiffUpdateProofData', [SESSION.idToken, PROOF_MODAL_REQID, proofData]);
+    btn.disabled = false;
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
+    alert(t('proof.successWait'));
+    closeProofModal();
+    loadHistoryTab();
+  } catch (e) { btn.disabled = false; alert(e.message || e); }
+}
+</script>
+
+</body>
+</html>
