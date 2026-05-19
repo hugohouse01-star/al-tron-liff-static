@@ -1319,4 +1319,310 @@ function renderCalendar(data) {
   html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
   html += '</div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
-  [['#E8F5E9','cal.status.normal'],['#FBEA
+  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
+    html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</span>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+  window._calDays = days;
+}
+function onCalDayClick(date) {
+  if (!window._calDays) return;
+  var d = window._calDays.find(function(x){ return x.date === date; });
+  if (!d) return;
+  var msg = date + '（' + d.weekday + '）\n\n' + (d.statusLabel || d.status);
+  if (d.shiftName || d.shiftNameZh || d.shiftId) {
+    var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
+    msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
+  }
+  if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
+  // v1.0.13 Phase B-2: 拿掉下班時間，員工面只顯示「上班時間 + 狀態」
+  alert(msg);
+}
+
+// === today chip (v1.0.6 Phase B-1) ====================================
+// 設計：
+//   - auth 後背景 fire webLiffMonthlyAttendance(當月) → 找 today → 算 chip 狀態
+//   - 同步把整月 response cache 進 window._calCache[YM]，月曆 tab 直接複用
+//   - chip 狀態：clockedIn / clockedInOnly / notClockedYet / onLeave / holiday / unscheduled
+//   - 不顯示實際打卡時間（符合 Phase B 規範：員工面只顯示 ✅/⚠）
+//   - 語言切換時 renderTodayChip 重跑（state 存在 window._todayChipState）
+async function loadTodayChip(prefiredPromise) {
+  // v1.0.10: 改用 webLiffTodayStatus 輕量 RPC（回傳 {date, status, hasIn, hasOut, ...}，非整月）
+  try {
+    var res;
+    if (prefiredPromise) {
+      res = await prefiredPromise;
+    } else {
+      if (!SESSION || !SESSION.idToken) return;
+      res = await rpc('webLiffTodayStatus', [SESSION.idToken]);
+    }
+    if (!res || !res.success || !res.data) {
+      renderTodayChip({ kind: 'fail' });
+      return;
+    }
+    var today = res.data;  // { date, status, hasIn, hasOut, isHoliday, holidayName, hasSchedule }
+    var hasIn = !!today.hasIn;
+    var hasOut = !!today.hasOut;
+    var state;
+    if (today.status === 'leave')        state = { kind: 'leave' };
+    else if (today.status === 'holiday') state = { kind: 'holiday' };
+    else if (today.status === 'unscheduled') {
+      // 無排班 fallback：有打卡 → ✅；沒打卡 → 真的非排班日
+      if (hasIn && hasOut)      state = { kind: 'clockedIn' };
+      else if (hasIn && !hasOut) state = { kind: 'clockedInOnly' };
+      else                       state = { kind: 'unscheduled' };
+    }
+    else if (today.status === 'no_data') state = { kind: 'notClockedYet' };
+    else if (hasIn && hasOut)            state = { kind: 'clockedIn' };          // normal / late
+    else if (hasIn && !hasOut)           state = { kind: 'clockedInOnly' };       // absent / 上班中
+    else                                  state = { kind: 'notClockedYet' };
+    renderTodayChip(state);
+  } catch (e) {
+    dbg('chip load fail: ' + (e && e.message || e));
+    renderTodayChip({ kind: 'fail' });
+  }
+}
+
+function renderTodayChip(state) {
+  window._todayChipState = state;
+  var el = $('todayChip');
+  if (!el) return;
+  // reset classes
+  el.className = 'today-chip';
+  var icon = '', cssCls = '', msgKey = '', subKey = '';
+  switch (state.kind) {
+    case 'clockedIn':      icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedIn'; break;
+    case 'clockedInOnly':  icon = '✅'; cssCls = 'chip-ok';      msgKey = 'chip.clockedInOnly'; subKey = 'chip.dontForgetOut'; break;
+    case 'notClockedYet':  icon = '⚠'; cssCls = 'chip-warn';    msgKey = 'chip.notClockedYet'; break;
+    case 'onLeave':
+    case 'leave':          icon = '🏖'; cssCls = 'chip-leave';   msgKey = 'chip.onLeave'; break;
+    case 'holiday':        icon = '🌟'; cssCls = 'chip-holiday'; msgKey = 'chip.holiday'; break;
+    case 'unscheduled':    icon = '—'; cssCls = 'chip-muted';   msgKey = 'chip.unscheduled'; break;
+    case 'fail':           icon = '⚠'; cssCls = 'chip-muted';   msgKey = 'chip.loadFail'; break;
+    default:               icon = '⏳'; cssCls = 'chip-loading'; msgKey = 'chip.loading';
+  }
+  el.classList.add(cssCls);
+  var html = '<span class="chip-icon">' + icon + '</span>'
+           + '<span class="chip-msg">' + escapeHtml(t(msgKey)) + '</span>';
+  if (subKey) html += '<span class="chip-sub">' + escapeHtml(t(subKey)) + '</span>';
+  el.innerHTML = html;
+}
+
+// === pending approvals (v1.0.14 Phase B-3) ============================
+// 合併 firstStage(主簽核) + secondStage(證明覆核) 一個列表，badge 區分
+var PENDING_BUNDLE = null;
+var REJECT_CTX = null;  // { kind: 'approve' | 'proof', requestId }
+
+function applyApprovalBundle(bundle) {
+  PENDING_BUNDLE = bundle;
+  var total = ((bundle.firstStage && bundle.firstStage.count) || 0)
+            + ((bundle.secondStage && bundle.secondStage.count) || 0);
+  var btn = $('tabBtnPending');
+  var badge = $('pendingBadge');
+  if (total > 0) {
+    if (btn) btn.classList.remove('hidden');
+    if (badge) { badge.textContent = total; badge.style.display = 'inline-block'; }
+  } else {
+    if (btn) btn.classList.add('hidden');
+    if (badge) badge.style.display = 'none';
+    // 用戶當前在 pending tab 但 total 變 0 → 切回 apply
+    if ($('tabBtnPending') && $('tabBtnPending').classList.contains('active')) {
+      switchTab('apply');
+    }
+  }
+}
+
+async function loadPendingTab(forceRefresh) {
+  if (!SESSION || !SESSION.idToken) return;
+  if (forceRefresh || !PENDING_BUNDLE) {
+    $('pendingContainer').className = 'empty';
+    $('pendingContainer').textContent = t('app.loadingShort');
+    try {
+      var res = await rpc('webLiffApprovalBundle', [SESSION.idToken]);
+      if (!res || !res.success) {
+        $('pendingContainer').innerHTML = '<div class="alert alert-danger">' + ((res && res.message) || 'fail') + '</div>';
+        $('pendingContainer').className = ''; return;
+      }
+      applyApprovalBundle(res.data);
+    } catch (e) {
+      $('pendingContainer').innerHTML = '<div class="alert alert-danger">' + (e.message || e) + '</div>';
+      $('pendingContainer').className = ''; return;
+    }
+  }
+  renderPending();
+}
+
+function renderPending() {
+  var box = $('pendingContainer');
+  box.className = '';
+  if (!PENDING_BUNDLE) { box.innerHTML = '<div class="empty">' + t('pending.empty') + '</div>'; return; }
+  var firsts = (PENDING_BUNDLE.firstStage && PENDING_BUNDLE.firstStage.requests) || [];
+  var seconds = (PENDING_BUNDLE.secondStage && PENDING_BUNDLE.secondStage.requests) || [];
+  if (!firsts.length && !seconds.length) {
+    box.innerHTML = '<div class="empty">' + t('pending.empty') + '</div>'; return;
+  }
+  var html = '';
+  // 合併 + 標 kind
+  var all = firsts.map(function(r){ return Object.assign({}, r, { _kind: 'approve' }); })
+    .concat(seconds.map(function(r){ return Object.assign({}, r, { _kind: 'proof' }); }));
+  all.forEach(function(r) {
+    var kindBadge = (r._kind === 'approve')
+      ? '<span style="background:#FFF7E6;color:#854F0B;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.approve') + '</span>'
+      : '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.proof') + '</span>';
+    var leaveName = _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave');
+    // 日期 range：起 = 終就一行，不同就 起 ~ 終
+    var dateLine = (r.startDate === r.endDate) ? r.startDate
+                  : r.startDate + ' ~ ' + r.endDate;
+    var hours = Number(r.hoursTotal || 0);
+    var days = Math.round((hours / 8) * 10) / 10;
+    var okBtnLabel = (r._kind === 'approve') ? t('pending.btn.approve') : t('pending.btn.verify');
+    var rejectBtnLabel = (r._kind === 'approve') ? t('pending.btn.reject') : t('pending.btn.rejectProof');
+    html += '<div class="card" style="padding:12px;">'
+      +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+      +     '<strong style="font-size:14px;">' + escapeHtml(r.employeeId) + '</strong>'
+      +     kindBadge
+      +   '</div>'
+      +   '<div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:10px;">'
+      +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + days + ' ' + t('app.daysUnit') + '</div>'
+      +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
+      +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
+      +   '</div>'
+      +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
+      +     '<button onclick="showPendingDetail(\'' + r.requestId + '\',\'' + r._kind + '\')" class="btn-secondary" style="padding:8px;font-size:12px;border-radius:5px;">' + t('pending.btn.detail') + '</button>'
+      +     '<button onclick="onPendingApprove(\'' + r.requestId + '\',\'' + r._kind + '\',this)" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#06C755;color:white;font-weight:600;">' + okBtnLabel + '</button>'
+      +     '<button onclick="openRejectModal(\'' + r._kind + '\',\'' + r.requestId + '\')" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#D85A30;color:white;font-weight:600;">' + rejectBtnLabel + '</button>'
+      +   '</div>'
+      + '</div>';
+  });
+  box.innerHTML = html;
+}
+
+function showPendingDetail(requestId, kind) {
+  if (!PENDING_BUNDLE) return;
+  var pool = (kind === 'approve') ? PENDING_BUNDLE.firstStage.requests : PENDING_BUNDLE.secondStage.requests;
+  var r = pool.find(function(x){ return x.requestId === requestId; });
+  if (!r) return;
+  var msg = '📌 ' + requestId + '\n\n'
+    + t('pending.det.applicant') + ': ' + r.employeeId + '\n'
+    + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave') + '\n'
+    + t('pending.det.range') + ': ' + r.startDate + ' ~ ' + r.endDate + '\n'
+    + t('pending.det.hours') + ': ' + (r.hoursTotal || 0) + ' ' + t('app.hoursUnit') + '\n'
+    + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
+  if (kind === 'proof' && r.proofData) {
+    if (r.proofData.fileUrl) msg += t('pending.det.proofFile') + ': ' + r.proofData.fileUrl + '\n';
+    if (r.proofData.link) msg += t('pending.det.proofLink') + ': ' + r.proofData.link + '\n';
+    if (r.proofData.note) msg += t('pending.det.proofNote') + ': ' + r.proofData.note + '\n';
+  }
+  alert(msg);
+}
+
+async function onPendingApprove(requestId, kind, btn) {
+  if (!SESSION || !SESSION.idToken) return;
+  if (!confirm(t(kind === 'approve' ? 'pending.confirm.approve' : 'pending.confirm.verify'))) return;
+  btn.disabled = true;
+  try {
+    var res;
+    if (kind === 'approve') {
+      res = await rpc('webLiffApproveLeave', [SESSION.idToken, requestId, 'approved', '']);
+    } else {
+      res = await rpc('webLiffProofReview', [SESSION.idToken, requestId, 'verified', '']);
+    }
+    if (!res || !res.success) {
+      alert((res && res.message) || 'fail');
+      btn.disabled = false;
+      return;
+    }
+    // refresh
+    loadPendingTab(true);
+  } catch (e) {
+    alert(e.message || e);
+    btn.disabled = false;
+  }
+}
+
+function openRejectModal(kind, requestId) {
+  REJECT_CTX = { kind: kind, requestId: requestId };
+  $('rejectModalNote').value = '';
+  $('rejectModal').classList.remove('hidden');
+}
+
+function closeRejectModal() {
+  $('rejectModal').classList.add('hidden');
+  REJECT_CTX = null;
+}
+
+async function submitRejectModal(btn) {
+  if (!REJECT_CTX) return;
+  var note = ($('rejectModalNote').value || '').trim();
+  if (!note) { alert(t('reject.noteRequired')); return; }
+  if (!SESSION || !SESSION.idToken) return;
+  btn.disabled = true;
+  try {
+    var res;
+    if (REJECT_CTX.kind === 'approve') {
+      res = await rpc('webLiffApproveLeave', [SESSION.idToken, REJECT_CTX.requestId, 'rejected', note]);
+    } else {
+      res = await rpc('webLiffProofReview', [SESSION.idToken, REJECT_CTX.requestId, 'rejected_at_review', note]);
+    }
+    btn.disabled = false;
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
+    closeRejectModal();
+    loadPendingTab(true);
+  } catch (e) { btn.disabled = false; alert(e.message || e); }
+}
+
+// === proof modal (補證明) =============================================
+var PROOF_MODAL_REQID = null;
+function openProofModal(requestId) {
+  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
+  PROOF_MODAL_REQID = requestId;
+  PROOF_MODAL_SELECTED_FILE = null;
+  if ($('proofModalFile')) $('proofModalFile').value = '';
+  if ($('proofModalCamera')) $('proofModalCamera').value = '';
+  $('proofModalUrl').value = '';
+  $('proofModalNote').value = '';
+  if ($('proofModalFileName')) $('proofModalFileName').textContent = '';
+  $('proofModal').classList.remove('hidden');
+}
+function closeProofModal() {
+  $('proofModal').classList.add('hidden');
+  PROOF_MODAL_REQID = null;
+  PROOF_MODAL_SELECTED_FILE = null;
+}
+async function submitProofModal(btn) {
+  if (!PROOF_MODAL_REQID) return;
+  var url = ($('proofModalUrl').value || '').trim();
+  var note = ($('proofModalNote').value || '').trim();
+  var file = PROOF_MODAL_SELECTED_FILE;
+  if (!url && !note && !file) { alert(t('proof.fileLabel')); return; }
+  btn.disabled = true;
+  try {
+    var proofData = {};
+    if (url) proofData.link = url;
+    if (note) proofData.note = note;
+    if (file) {
+      var b64 = await fileToBase64(file);
+      var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, PROOF_MODAL_REQID, {
+        base64: b64, fileName: file.name, mimeType: file.type || 'application/octet-stream'
+      }]);
+      if (upRes && upRes.success) {
+        proofData.fileId = upRes.data.fileId;
+        proofData.fileUrl = upRes.data.fileUrl;
+        proofData.fileName = upRes.data.fileName;
+      } else {
+        alert((upRes && upRes.message) || 'upload fail'); btn.disabled = false; return;
+      }
+    }
+    var res = await rpc('webLiffUpdateProofData', [SESSION.idToken, PROOF_MODAL_REQID, proofData]);
+    btn.disabled = false;
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
+    alert(t('proof.successWait'));
+    closeProofModal();
+    loadHistoryTab();
+  } catch (e) { btn.disabled = false; alert(e.message || e); }
+}
+</script>
+
+</body>
+</html>
