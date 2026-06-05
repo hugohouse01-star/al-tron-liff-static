@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.15';
+var APP_VERSION = 'static-1.0.16';  // Lang-4: SESSION.preferredLang → 初始語言（本機選擇優先）
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -733,6 +733,22 @@ function applyI18n() {
   }
 }
 
+/**
+ * Lang-4 (2026-06-05)：SESSION.preferredLang（Portal 帳號 I 欄 zh/en/th）→ LIFF 初始語言
+ *   - 本機 localStorage liff_lang 有值（user 手動選過）→ 不動，本機優先
+ *   - 只改 CURRENT_LANG + applyI18n，不寫 localStorage（之後帳號語言改了還能跟著變）
+ *   - 呼叫時機：SESSION 剛設好、各動態 render 之前
+ */
+function applySessionLang() {
+  try { if (localStorage.getItem('liff_lang')) return; } catch (e) { return; }
+  if (!SESSION || !SESSION.preferredLang) return;
+  var map = { zh: 'zh-TW', en: 'en', th: 'th' };
+  var target = map[String(SESSION.preferredLang).toLowerCase()];
+  if (!target || target === CURRENT_LANG) return;
+  CURRENT_LANG = target;
+  applyI18n();
+}
+
 function changeLang(lang) {
   CURRENT_LANG = lang;
   try { localStorage.setItem('liff_lang', lang); } catch (e) {}
@@ -868,6 +884,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     // v1.0.11: init payload = { session, leaveTypes, year, todayStatus }
     SESSION = res.data.session;
     SESSION.idToken = idToken;
+    applySessionLang();  // Lang-4: 本機沒手動選過語言 → 用帳號預設語言
     setText('whoName', SESSION.nameZh || SESSION.employeeId);
     // v1.0.8 修：拔掉 data-i18n，避免 renderApplyForm 末段 applyI18n 把 whoName 沖回「載入中…」
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
@@ -926,6 +943,7 @@ async function onBind(btn) {
     if (!ex || !ex.success) { alert(t('app.err.bindRefetch')); return; }
     SESSION = ex.data.session;
     SESSION.idToken = (window.liff && liff.getIDToken) ? liff.getIDToken() : '';
+    applySessionLang();  // Lang-4
     setText('whoName', SESSION.nameZh || SESSION.employeeId);
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
     setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
