@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.16';  // Lang-4: SESSION.preferredLang → 初始語言（本機選擇優先）
+var APP_VERSION = 'static-1.0.17';  // OT-9: 月曆標加班日⚡+我的加班班別；含 1.0.16 Lang-4 預設語言
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -422,6 +422,8 @@ var I18N_DICTS = {
     'cal.totalHours': '總工時', 'cal.lateDays': '遲到', 'cal.absentDays': '缺勤',
     'cal.status.normal': '正常', 'cal.status.leave': '請假', 'cal.status.late': '遲到',
     'cal.status.absent': '缺勤', 'cal.status.holiday': '假日',
+    'cal.status.ot': '加班日', 'cal.otDay': '⚡ 加班日',
+    'cal.dayMsg.otLine': '加班：{name}（{start}~{end}）',
     'proof.title': '📎 補證明', 'proof.fileLabel': '檔案（可選）',
     'proof.urlLabel': '連結（可選）', 'proof.noteLabel': '說明（可選）',
     'proof.cancel': '取消', 'proof.submit': '送出',
@@ -517,6 +519,8 @@ var I18N_DICTS = {
     'cal.totalHours': 'Total hrs', 'cal.lateDays': 'Late', 'cal.absentDays': 'Absent',
     'cal.status.normal': 'Normal', 'cal.status.leave': 'Leave', 'cal.status.late': 'Late',
     'cal.status.absent': 'Absent', 'cal.status.holiday': 'Holiday',
+    'cal.status.ot': 'OT day', 'cal.otDay': '⚡ Overtime day',
+    'cal.dayMsg.otLine': 'Overtime: {name} ({start}~{end})',
     'proof.title': '📎 Add proof', 'proof.fileLabel': 'File (optional)',
     'proof.urlLabel': 'URL (optional)', 'proof.noteLabel': 'Note (optional)',
     'proof.cancel': 'Cancel', 'proof.submit': 'Submit',
@@ -612,6 +616,8 @@ var I18N_DICTS = {
     'cal.totalHours': 'ชม.รวม', 'cal.lateDays': 'สาย', 'cal.absentDays': 'ขาด',
     'cal.status.normal': 'ปกติ', 'cal.status.leave': 'ลา', 'cal.status.late': 'สาย',
     'cal.status.absent': 'ขาด', 'cal.status.holiday': 'วันหยุด',
+    'cal.status.ot': 'วัน OT', 'cal.otDay': '⚡ วันทำงานล่วงเวลา',
+    'cal.dayMsg.otLine': 'ล่วงเวลา: {name} ({start}~{end})',
     'proof.title': '📎 เพิ่มหลักฐาน', 'proof.fileLabel': 'ไฟล์ (ทางเลือก)',
     'proof.urlLabel': 'ลิงก์ (ทางเลือก)', 'proof.noteLabel': 'หมายเหตุ (ทางเลือก)',
     'proof.cancel': 'ยกเลิก', 'proof.submit': 'ส่ง',
@@ -1321,6 +1327,9 @@ function renderCalendar(data) {
     else if (d.status === 'late') { bg = '#FFF7E6'; col = '#854F0B'; icon = '⏰'; }
     else if (d.status === 'normal') { bg = '#E8F5E9'; col = '#1B5E20'; icon = '✓'; }
     else if (d.status === 'absent') { bg = '#FCEBEB'; col = '#501313'; icon = '✗'; }
+    // OT-9: 加班日 — 假日/未排班底色改淡藍；本人有排加班 → ⚡
+    if (d.isOvertimeDay && (d.status === 'holiday' || d.status === 'unscheduled')) { bg = '#E3F2FD'; col = '#0D47A1'; }
+    if (d.myOt) icon = '⚡' + (icon || '');
     var dayNum = Number(d.date.split('-')[2]);
     html += '<div onclick="onCalDayClick(\'' + d.date + '\')" style="background:' + bg + ';color:' + col + ';padding:6px 2px;border-radius:4px;cursor:pointer;font-size:11px;min-height:44px;">';
     html += '<div style="font-weight:600;font-size:13px;">' + dayNum + '</div>';
@@ -1337,7 +1346,7 @@ function renderCalendar(data) {
   html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
   html += '</div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
-  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday']].forEach(function(p){
+  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday'],['#E3F2FD','cal.status.ot']].forEach(function(p){
     html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</span>';
   });
   html += '</div>';
@@ -1352,6 +1361,12 @@ function onCalDayClick(date) {
   if (d.shiftName || d.shiftNameZh || d.shiftId) {
     var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
     msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
+  }
+  // OT-9: 加班日 + 我的加班班別
+  if (d.isOvertimeDay) msg += '\n' + t('cal.otDay');
+  if (d.myOt) {
+    var otObj = { nameZh: d.myOt.nameZh, nameEn: d.myOt.nameEn, nameTh: d.myOt.nameTh };
+    msg += '\n' + t('cal.dayMsg.otLine', { name: _locName(otObj, 'shift'), start: d.myOt.start || '', end: d.myOt.end || '' });
   }
   if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
   // v1.0.13 Phase B-2: 拿掉下班時間，員工面只顯示「上班時間 + 狀態」
