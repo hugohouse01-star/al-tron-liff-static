@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.18';  // CAL-ONLY: 行事曆-only 模式（只有行事曆權限的人看公司行事曆月曆）
+var APP_VERSION = 'static-1.0.19';  // LIFF-PERM: 三分頁各吃一個 funcCode（請假/月曆/簽核），全 hidden 擋門外
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -897,33 +897,32 @@ window.addEventListener('DOMContentLoaded', async function() {
     setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
     hide('loadingPane'); show('mainPane');
 
-    // v1.0.136 CAL-ONLY：只有行事曆權限 → 精簡模式（藏請假/打卡，只看公司行事曆月曆）
-    if (SESSION.accessMode === 'calendar') {
-      applyCalendarOnlyMode();
-    } else {
-      // chip：init 已內含 todayStatus，直接 render（不用再 fire RPC）
+    // v1.0.139：依權限顯示分頁
+    var nv = applyLiffNav();
+    // chip：有 hrm（calendarMode=full）才載今日打卡狀態
+    if (SESSION.calendarMode !== 'calendar') {
       if (res.data.todayStatus) {
         loadTodayChip(Promise.resolve({ success: true, data: res.data.todayStatus }));
       } else {
-        loadTodayChip();  // fallback — todayStatus 沒回（後端例外時）就重 fetch
+        loadTodayChip();
       }
-
-      // leaveTypes：init 已含
+    }
+    // 請假表單：有請假權限才載
+    if (nv.showLeave) {
       if (res.data.leaveTypes) {
         APPLY_LEAVE_TYPES = res.data.leaveTypes;
         renderApplyForm();
       }
-
-      // v1.0.15: approvalBundle 從 init 拆出來，背景另發（init 太慢被它拖累）
-      rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
-        if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
-      }).catch(function(e) { dbg('approvalBundle fail: ' + (e && e.message || e)); });
-
-      // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
       if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
         $('applyFormLoading').textContent = '❌ load fail';
         $('applyFormLoading').className = 'alert alert-danger';
       }
+    }
+    // 待簽：有簽核權限 或 fallback 才 fire approvalBundle
+    if (nv.showApprove || nv.fallback) {
+      rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
+        if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
+      }).catch(function(e) { dbg('approvalBundle fail: ' + (e && e.message || e)); });
     }
 
   } catch (e) {
@@ -931,13 +930,25 @@ window.addEventListener('DOMContentLoaded', async function() {
   }
 });
 
-// v1.0.136 CAL-ONLY：行事曆-only 模式 — 藏 chip + 請假/歷程/待簽 tab，強制顯示月曆
-function applyCalendarOnlyMode() {
-  hide('todayChip');
-  ['tabBtnApply', 'tabBtnHistory', 'tabBtnPending'].forEach(function (id) {
-    var el = $(id); if (el) el.classList.add('hidden');
-  });
-  switchTab('calendar');
+// v1.0.139：依 nav 權限（請假/簽核/月曆 各對一個 funcCode）顯示分頁
+//   請假/歷程 ← leave；月曆 ← calendar；待簽 ← approve
+//   後端沒回 nav（舊版相容）→ fallback 全顯示，待簽交給 approvalBundle count 收合
+//   calendarMode='calendar'（無 hrm）→ 藏打卡 chip
+//   回傳 {showLeave, showApprove, fallback} 給 caller 決定要不要 fire 對應 RPC
+function applyLiffNav() {
+  var nav = (SESSION && SESSION.nav) || null;
+  var fallback = !nav;
+  var showLeave    = fallback || !!nav.leave;
+  var showApprove  = fallback || !!nav.approve;
+  var showCalendar = fallback || !!nav.calendar;
+  function setTab(id, show) { var el = $(id); if (el) el.classList.toggle('hidden', !show); }
+  setTab('tabBtnApply', showLeave);
+  setTab('tabBtnHistory', showLeave);      // 歷程跟請假同權限
+  setTab('tabBtnCalendar', showCalendar);
+  if (!fallback) setTab('tabBtnPending', showApprove);  // fallback 時待簽交給 approvalBundle count
+  if (SESSION && SESSION.calendarMode === 'calendar') hide('todayChip');
+  switchTab(showLeave ? 'apply' : showCalendar ? 'calendar' : 'pending');  // 停在第一個可見分頁
+  return { showLeave: showLeave, showApprove: showApprove, fallback: fallback };
 }
 
 async function onBind(btn) {
@@ -968,19 +979,19 @@ async function onBind(btn) {
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
     setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
     hide('bindPane'); show('mainPane');
-    // v1.0.136 CAL-ONLY
-    if (SESSION.accessMode === 'calendar') {
-      applyCalendarOnlyMode();
-    } else {
+    // v1.0.139：依權限顯示分頁
+    var nv2 = applyLiffNav();
+    if (SESSION.calendarMode !== 'calendar') {
       if (ex.data.todayStatus) {
         loadTodayChip(Promise.resolve({ success: true, data: ex.data.todayStatus }));
       } else {
         loadTodayChip();
       }
-      if (ex.data.leaveTypes) {
-        APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
-      }
-      // v1.0.15: approvalBundle lazy fire
+    }
+    if (nv2.showLeave && ex.data.leaveTypes) {
+      APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
+    }
+    if (nv2.showApprove || nv2.fallback) {
       rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
         if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
       }).catch(function(e) {});
@@ -1312,7 +1323,7 @@ async function loadCalendarTab(yearMonth) {
   $('calContainer').textContent = t('app.loadingShort');
   try {
     // v1.0.136 CAL-ONLY：行事曆權限用輕量 calendarMonth（不算出勤）；完整模式用 monthlyAttendance
-    var calRpc = (SESSION.accessMode === 'calendar') ? 'webLiffCalendarMonth' : 'webLiffMonthlyAttendance';
+    var calRpc = (SESSION.calendarMode === 'calendar') ? 'webLiffCalendarMonth' : 'webLiffMonthlyAttendance';
     var res = await rpc(calRpc, [SESSION.idToken, CAL_YM]);
     if (!res || !res.success) {
       $('calContainer').innerHTML = '<div class="alert alert-danger">' + ((res && res.message) || 'fail') + '</div>';
@@ -1340,7 +1351,7 @@ function renderCalendar(data) {
   wkDays.forEach(function(w){ html += '<div>' + w + '</div>'; });
   html += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
   for (var p = 0; p < startWeekday; p++) html += '<div></div>';
-  var calOnly = (SESSION && SESSION.accessMode === 'calendar');
+  var calOnly = (SESSION && SESSION.calendarMode === 'calendar');
   days.forEach(function(d) {
     var bg = '#FFFFFF', col = '#222', icon = '';
     if (calOnly) {
@@ -1391,7 +1402,7 @@ function onCalDayClick(date) {
   if (!window._calDays) return;
   var d = window._calDays.find(function(x){ return x.date === date; });
   if (!d) return;
-  var calOnly = (SESSION && SESSION.accessMode === 'calendar');
+  var calOnly = (SESSION && SESSION.calendarMode === 'calendar');
   var wkArr = (CURRENT_LANG === 'en') ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
             : (CURRENT_LANG === 'th') ? ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
             : ['日','一','二','三','四','五','六'];
@@ -1498,15 +1509,17 @@ function applyApprovalBundle(bundle) {
             + ((bundle.secondStage && bundle.secondStage.count) || 0);
   var btn = $('tabBtnPending');
   var badge = $('pendingBadge');
+  // v1.0.139：有 nav 權限時，待簽分頁顯隱由 applyLiffNav（leave-approval）決定，這裡只更新 badge 數字
+  var permControlled = !!(SESSION && SESSION.nav);
   if (total > 0) {
-    if (btn) btn.classList.remove('hidden');
+    if (btn && !permControlled) btn.classList.remove('hidden');
     if (badge) { badge.textContent = total; badge.style.display = 'inline-block'; }
   } else {
-    if (btn) btn.classList.add('hidden');
     if (badge) badge.style.display = 'none';
-    // 用戶當前在 pending tab 但 total 變 0 → 切回 apply
-    if ($('tabBtnPending') && $('tabBtnPending').classList.contains('active')) {
-      switchTab('apply');
+    if (!permControlled) {
+      // 舊版相容（無 nav）：count 變 0 → 收合分頁
+      if (btn) btn.classList.add('hidden');
+      if (btn && btn.classList.contains('active')) switchTab('apply');
     }
   }
 }
