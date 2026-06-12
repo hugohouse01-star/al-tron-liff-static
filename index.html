@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.17';  // OT-9: 月曆標加班日⚡+我的加班班別；含 1.0.16 Lang-4 預設語言
+var APP_VERSION = 'static-1.0.18';  // CAL-ONLY: 行事曆-only 模式（只有行事曆權限的人看公司行事曆月曆）
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -897,34 +897,48 @@ window.addEventListener('DOMContentLoaded', async function() {
     setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
     hide('loadingPane'); show('mainPane');
 
-    // chip：init 已內含 todayStatus，直接 render（不用再 fire RPC）
-    if (res.data.todayStatus) {
-      loadTodayChip(Promise.resolve({ success: true, data: res.data.todayStatus }));
+    // v1.0.136 CAL-ONLY：只有行事曆權限 → 精簡模式（藏請假/打卡，只看公司行事曆月曆）
+    if (SESSION.accessMode === 'calendar') {
+      applyCalendarOnlyMode();
     } else {
-      loadTodayChip();  // fallback — todayStatus 沒回（後端例外時）就重 fetch
-    }
+      // chip：init 已內含 todayStatus，直接 render（不用再 fire RPC）
+      if (res.data.todayStatus) {
+        loadTodayChip(Promise.resolve({ success: true, data: res.data.todayStatus }));
+      } else {
+        loadTodayChip();  // fallback — todayStatus 沒回（後端例外時）就重 fetch
+      }
 
-    // leaveTypes：init 已含
-    if (res.data.leaveTypes) {
-      APPLY_LEAVE_TYPES = res.data.leaveTypes;
-      renderApplyForm();
-    }
+      // leaveTypes：init 已含
+      if (res.data.leaveTypes) {
+        APPLY_LEAVE_TYPES = res.data.leaveTypes;
+        renderApplyForm();
+      }
 
-    // v1.0.15: approvalBundle 從 init 拆出來，背景另發（init 太慢被它拖累）
-    rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
-      if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
-    }).catch(function(e) { dbg('approvalBundle fail: ' + (e && e.message || e)); });
+      // v1.0.15: approvalBundle 從 init 拆出來，背景另發（init 太慢被它拖累）
+      rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
+        if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
+      }).catch(function(e) { dbg('approvalBundle fail: ' + (e && e.message || e)); });
 
-    // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
-    if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
-      $('applyFormLoading').textContent = '❌ load fail';
-      $('applyFormLoading').className = 'alert alert-danger';
+      // 萬一 leaveTypes 沒回（後端例外），顯示錯誤訊息
+      if (!res.data.leaveTypes || !res.data.leaveTypes.length) {
+        $('applyFormLoading').textContent = '❌ load fail';
+        $('applyFormLoading').className = 'alert alert-danger';
+      }
     }
 
   } catch (e) {
     showError('init: ' + (e && e.message || e));
   }
 });
+
+// v1.0.136 CAL-ONLY：行事曆-only 模式 — 藏 chip + 請假/歷程/待簽 tab，強制顯示月曆
+function applyCalendarOnlyMode() {
+  hide('todayChip');
+  ['tabBtnApply', 'tabBtnHistory', 'tabBtnPending'].forEach(function (id) {
+    var el = $(id); if (el) el.classList.add('hidden');
+  });
+  switchTab('calendar');
+}
 
 async function onBind(btn) {
   var empId = ($('bindEmpId').value || '').trim();
@@ -954,18 +968,23 @@ async function onBind(btn) {
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
     setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
     hide('bindPane'); show('mainPane');
-    if (ex.data.todayStatus) {
-      loadTodayChip(Promise.resolve({ success: true, data: ex.data.todayStatus }));
+    // v1.0.136 CAL-ONLY
+    if (SESSION.accessMode === 'calendar') {
+      applyCalendarOnlyMode();
     } else {
-      loadTodayChip();
+      if (ex.data.todayStatus) {
+        loadTodayChip(Promise.resolve({ success: true, data: ex.data.todayStatus }));
+      } else {
+        loadTodayChip();
+      }
+      if (ex.data.leaveTypes) {
+        APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
+      }
+      // v1.0.15: approvalBundle lazy fire
+      rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
+        if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
+      }).catch(function(e) {});
     }
-    if (ex.data.leaveTypes) {
-      APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
-    }
-    // v1.0.15: approvalBundle lazy fire
-    rpc('webLiffApprovalBundle', [SESSION.idToken]).then(function(abRes) {
-      if (abRes && abRes.success && abRes.data) applyApprovalBundle(abRes.data);
-    }).catch(function(e) {});
   } catch (e) {
     alert('error: ' + (e && e.message || e));
     btn.disabled = false; btn.textContent = t('bind.submit');
@@ -1292,7 +1311,9 @@ async function loadCalendarTab(yearMonth) {
   $('calContainer').className = 'empty';
   $('calContainer').textContent = t('app.loadingShort');
   try {
-    var res = await rpc('webLiffMonthlyAttendance', [SESSION.idToken, CAL_YM]);
+    // v1.0.136 CAL-ONLY：行事曆權限用輕量 calendarMonth（不算出勤）；完整模式用 monthlyAttendance
+    var calRpc = (SESSION.accessMode === 'calendar') ? 'webLiffCalendarMonth' : 'webLiffMonthlyAttendance';
+    var res = await rpc(calRpc, [SESSION.idToken, CAL_YM]);
     if (!res || !res.success) {
       $('calContainer').innerHTML = '<div class="alert alert-danger">' + ((res && res.message) || 'fail') + '</div>';
       $('calContainer').className = ''; return;
@@ -1319,16 +1340,23 @@ function renderCalendar(data) {
   wkDays.forEach(function(w){ html += '<div>' + w + '</div>'; });
   html += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
   for (var p = 0; p < startWeekday; p++) html += '<div></div>';
+  var calOnly = (SESSION && SESSION.accessMode === 'calendar');
   days.forEach(function(d) {
     var bg = '#FFFFFF', col = '#222', icon = '';
-    if (d.status === 'leave') { bg = '#FBEAF0'; col = '#4B1528'; icon = '🏖'; }
-    else if (d.status === 'holiday') { bg = '#F5F5F5'; col = '#666'; }
-    else if (d.status === 'unscheduled') { bg = '#FAFAFA'; col = '#999'; }
-    else if (d.status === 'late') { bg = '#FFF7E6'; col = '#854F0B'; icon = '⏰'; }
-    else if (d.status === 'normal') { bg = '#E8F5E9'; col = '#1B5E20'; icon = '✓'; }
-    else if (d.status === 'absent') { bg = '#FCEBEB'; col = '#501313'; icon = '✗'; }
-    // OT-9: 加班日 — 假日/未排班底色改淡藍；本人有排加班 → ⚡
-    if (d.isOvertimeDay && (d.status === 'holiday' || d.status === 'unscheduled')) { bg = '#E3F2FD'; col = '#0D47A1'; }
+    if (calOnly) {
+      // 行事曆-only：只看放假/加班，不顯示出勤狀態
+      if (d.isHoliday) { bg = '#F5F5F5'; col = '#666'; }
+      if (d.isOvertimeDay) { bg = '#E3F2FD'; col = '#0D47A1'; }
+    } else {
+      if (d.status === 'leave') { bg = '#FBEAF0'; col = '#4B1528'; icon = '🏖'; }
+      else if (d.status === 'holiday') { bg = '#F5F5F5'; col = '#666'; }
+      else if (d.status === 'unscheduled') { bg = '#FAFAFA'; col = '#999'; }
+      else if (d.status === 'late') { bg = '#FFF7E6'; col = '#854F0B'; icon = '⏰'; }
+      else if (d.status === 'normal') { bg = '#E8F5E9'; col = '#1B5E20'; icon = '✓'; }
+      else if (d.status === 'absent') { bg = '#FCEBEB'; col = '#501313'; icon = '✗'; }
+      // OT-9: 加班日 — 假日/未排班底色改淡藍；本人有排加班 → ⚡
+      if (d.isOvertimeDay && (d.status === 'holiday' || d.status === 'unscheduled')) { bg = '#E3F2FD'; col = '#0D47A1'; }
+    }
     if (d.myOt) icon = '⚡' + (icon || '');
     var dayNum = Number(d.date.split('-')[2]);
     html += '<div onclick="onCalDayClick(\'' + d.date + '\')" style="background:' + bg + ';color:' + col + ';padding:6px 2px;border-radius:4px;cursor:pointer;font-size:11px;min-height:44px;">';
@@ -1338,15 +1366,21 @@ function renderCalendar(data) {
     html += '</div>';
   });
   html += '</div>';
-  var s = data.summary || {};
-  html += '<div style="margin-top:14px;padding:10px;background:white;border-radius:8px;border:1px solid #e6e8eb;font-size:12px;line-height:1.7em;">';
-  html += '<strong>' + t('cal.summary') + '</strong><br>';
-  html += t('cal.workDays') + ' ' + (s.workDays || 0) + ' ｜ ' + t('cal.leaveDays') + ' ' + (s.leaveDays || 0) + ' ｜ ' + t('cal.holidayDays') + ' ' + (s.holidayDays || 0) + '<br>';
-  // v1.0.13 Phase B-2: 拿掉「總工時」這個累積時數，員工面只顯示天數類狀態
-  html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
-  html += '</div>';
+  if (!calOnly) {
+    var s = data.summary || {};
+    html += '<div style="margin-top:14px;padding:10px;background:white;border-radius:8px;border:1px solid #e6e8eb;font-size:12px;line-height:1.7em;">';
+    html += '<strong>' + t('cal.summary') + '</strong><br>';
+    html += t('cal.workDays') + ' ' + (s.workDays || 0) + ' ｜ ' + t('cal.leaveDays') + ' ' + (s.leaveDays || 0) + ' ｜ ' + t('cal.holidayDays') + ' ' + (s.holidayDays || 0) + '<br>';
+    // v1.0.13 Phase B-2: 拿掉「總工時」這個累積時數，員工面只顯示天數類狀態
+    html += t('cal.lateDays') + ' ' + (s.lateDays || 0) + ' ｜ ' + t('cal.absentDays') + ' ' + (s.absentDays || 0);
+    html += '</div>';
+  }
   html += '<div style="margin-top:10px;display:flex;gap:8px;font-size:10px;flex-wrap:wrap;color:#555;">';
-  [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday'],['#E3F2FD','cal.status.ot']].forEach(function(p){
+  // 行事曆-only 只顯示放假/加班圖例；完整模式顯示全部
+  var legend = calOnly
+    ? [['#F5F5F5','cal.status.holiday'],['#E3F2FD','cal.status.ot']]
+    : [['#E8F5E9','cal.status.normal'],['#FBEAF0','cal.status.leave'],['#FFF7E6','cal.status.late'],['#FCEBEB','cal.status.absent'],['#F5F5F5','cal.status.holiday'],['#E3F2FD','cal.status.ot']];
+  legend.forEach(function(p){
     html += '<span><span style="display:inline-block;width:10px;height:10px;background:' + p[0] + ';border-radius:2px;vertical-align:middle;"></span> ' + t(p[1]) + '</span>';
   });
   html += '</div>';
@@ -1357,18 +1391,29 @@ function onCalDayClick(date) {
   if (!window._calDays) return;
   var d = window._calDays.find(function(x){ return x.date === date; });
   if (!d) return;
-  var msg = date + '（' + d.weekday + '）\n\n' + (d.statusLabel || d.status);
-  if (d.shiftName || d.shiftNameZh || d.shiftId) {
-    var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
-    msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
+  var calOnly = (SESSION && SESSION.accessMode === 'calendar');
+  var wkArr = (CURRENT_LANG === 'en') ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+            : (CURRENT_LANG === 'th') ? ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
+            : ['日','一','二','三','四','五','六'];
+  var wk = d.weekday || wkArr[new Date(date + 'T00:00:00').getDay()];
+  var msg;
+  if (calOnly) {
+    msg = date + '（' + wk + '）';
+    if (d.isHoliday) msg += '\n' + (d.holidayName || t('cal.status.holiday'));
+  } else {
+    msg = date + '（' + wk + '）\n\n' + (d.statusLabel || d.status);
+    if (d.shiftName || d.shiftNameZh || d.shiftId) {
+      var shiftObj = { shiftId: d.shiftId, nameZh: d.shiftNameZh || d.shiftName, nameEn: d.shiftNameEn, nameTh: d.shiftNameTh };
+      msg += '\n' + t('cal.dayMsg.shiftLine', { name: _locName(shiftObj, 'shift'), start: d.scheduledStart || '', end: d.scheduledEnd || '' });
+    }
   }
-  // OT-9: 加班日 + 我的加班班別
+  // OT-9: 加班日 + 我的加班班別（兩種模式共用）
   if (d.isOvertimeDay) msg += '\n' + t('cal.otDay');
   if (d.myOt) {
     var otObj = { nameZh: d.myOt.nameZh, nameEn: d.myOt.nameEn, nameTh: d.myOt.nameTh };
     msg += '\n' + t('cal.dayMsg.otLine', { name: _locName(otObj, 'shift'), start: d.myOt.start || '', end: d.myOt.end || '' });
   }
-  if (d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
+  if (!calOnly && d.actualIn) msg += '\n' + t('app.in') + ': ' + d.actualIn;
   // v1.0.13 Phase B-2: 拿掉下班時間，員工面只顯示「上班時間 + 狀態」
   alert(msg);
 }
