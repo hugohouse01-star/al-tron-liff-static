@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.19';  // LIFF-PERM: 三分頁各吃一個 funcCode（請假/月曆/簽核），全 hidden 擋門外
+var APP_VERSION = 'static-1.0.20';  // 整天預設打勾(原已是)；同日填時間扣午休後>=8h跳「改整天?」確認
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -397,6 +397,7 @@ var I18N_DICTS = {
     'apply.tab': '請假', 'apply.loadingTypes': '⏳ 載入假別清單…',
     'apply.leaveType': '假別', 'apply.startDate': '起始日期', 'apply.endDate': '結束日期',
     'apply.fullDay': '全天', 'apply.fullDayNote': '（依當日排班計算工時）',
+    'apply.fullDayConfirm': '看起來是整天（{h} 小時，已扣午休）。要改成「全天」請假嗎？\n\n確定＝改成全天；取消＝保留你填的時間。',
     'apply.startTime': '起始時間', 'apply.endTime': '結束時間',
     'apply.extraTitle': '📋 補充資訊',
     'apply.eventDate': '事件日', 'apply.eventDateHint': '婚禮/喪事/預產期/配偶生產日/流產日/產檢日',
@@ -494,6 +495,7 @@ var I18N_DICTS = {
     'apply.tab': 'Apply', 'apply.loadingTypes': '⏳ Loading leave types…',
     'apply.leaveType': 'Leave type', 'apply.startDate': 'Start date', 'apply.endDate': 'End date',
     'apply.fullDay': 'Full day', 'apply.fullDayNote': ' (hours from shift schedule)',
+    'apply.fullDayConfirm': 'This looks like a full day ({h} h after lunch). Switch to full-day leave?\n\nOK = full day; Cancel = keep your times.',
     'apply.startTime': 'Start time', 'apply.endTime': 'End time',
     'apply.extraTitle': '📋 Additional info',
     'apply.eventDate': 'Event date', 'apply.eventDateHint': 'Wedding / Funeral / Due date / Spouse delivery / Miscarriage / Prenatal',
@@ -591,6 +593,7 @@ var I18N_DICTS = {
     'apply.tab': 'ลา', 'apply.loadingTypes': '⏳ กำลังโหลดประเภทการลา…',
     'apply.leaveType': 'ประเภทการลา', 'apply.startDate': 'วันที่เริ่ม', 'apply.endDate': 'วันที่สิ้นสุด',
     'apply.fullDay': 'ทั้งวัน', 'apply.fullDayNote': ' (ตามตารางกะ)',
+    'apply.fullDayConfirm': 'ดูเหมือนเป็นทั้งวัน ({h} ชม. หักพักเที่ยงแล้ว) เปลี่ยนเป็นลาทั้งวันไหม?\n\nตกลง = ทั้งวัน; ยกเลิก = ใช้เวลาที่กรอก',
     'apply.startTime': 'เวลาเริ่ม', 'apply.endTime': 'เวลาสิ้นสุด',
     'apply.extraTitle': '📋 ข้อมูลเพิ่มเติม',
     'apply.eventDate': 'วันเหตุการณ์', 'apply.eventDateHint': 'แต่งงาน / งานศพ / กำหนดคลอด / คู่สมรสคลอด / แท้ง / ตรวจครรภ์',
@@ -1125,6 +1128,17 @@ function onFullDayToggle() {
   else { range.classList.remove('hidden'); range.style.display = 'grid'; }
 }
 
+// 同日工時（扣午休 12:00-13:00 重疊），與後端 _computeLeaveHours_ 同邏輯
+function _liffLeaveWorkHours(st, et) {
+  function toMin(s) { var p = String(s || '').split(':'); return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0); }
+  var s = toMin(st), e = toMin(et);
+  if (e <= s) return 0;
+  var ls = 12 * 60, le = 13 * 60;
+  var ov = Math.min(e, le) - Math.max(s, ls);
+  if (ov < 0) ov = 0;
+  return Math.round(((e - s - ov) / 60) * 100) / 100;
+}
+
 function loadEmployeesForDelegate() {
   if (DELEGATE_LIST_LOADED) return;
   if (!SESSION || !SESSION.idToken) return;
@@ -1156,6 +1170,16 @@ async function onSubmitLeave(btn) {
   if (!leaveId || !startDate || !endDate) { alert(t('apply.startDate')); return; }
   if (!reason) { alert(t('apply.reason')); return; }
   if (endDate < startDate) { alert(t('apply.startDate')); return; }
+  // 同日有填時間：扣午休後 >= 8h 看起來是整天 → 跳確認，確定就轉成全天
+  if (!fullDay && startDate === endDate && startTime && endTime) {
+    var wh = _liffLeaveWorkHours(startTime, endTime);
+    if (wh >= 8) {
+      if (confirm(t('apply.fullDayConfirm').replace('{h}', wh))) {
+        $('appFullDay').checked = true; onFullDayToggle();
+        fullDay = true; startTime = ''; endTime = '';
+      }
+    }
+  }
   var eventDate = $('appEventDate') ? $('appEventDate').value : '';
   var pregnancyStage = $('appPregnancyStage') ? $('appPregnancyStage').value : '';
   var relation = $('appRelation') ? $('appRelation').value : '';
