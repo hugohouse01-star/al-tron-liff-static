@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.20';  // 整天預設打勾(原已是)；同日填時間扣午休後>=8h跳「改整天?」確認
+var APP_VERSION = 'static-1.0.21';  // 請假時長顯示：整除8h→「N 天」，否則「X 小時」(歷史/卡片/詳情/送出)
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -1139,6 +1139,13 @@ function _liffLeaveWorkHours(st, et) {
   return Math.round(((e - s - ov) / 60) * 100) / 100;
 }
 
+// 請假時長顯示：整除 8h → 「N 天」；否則 → 「X 小時」
+function fmtLeaveDur(hours) {
+  var h = Number(hours || 0);
+  if (h > 0 && h % 8 === 0) return (h / 8) + ' ' + t('app.daysUnit');
+  return (Math.round(h * 100) / 100) + ' ' + t('app.hoursUnit');
+}
+
 function loadEmployeesForDelegate() {
   if (DELEGATE_LIST_LOADED) return;
   if (!SESSION || !SESSION.idToken) return;
@@ -1219,7 +1226,7 @@ async function onSubmitLeave(btn) {
       resBox.innerHTML = '<div class="alert alert-danger">❌ ' + ((res && res.message) || 'fail') + '</div>'; return;
     }
     var d = res.data;
-    var msg = t('apply.success') + d.requestId + '<br>' + t('apply.successHours') + d.hoursTotal;
+    var msg = t('apply.success') + d.requestId + '<br>' + t('apply.successHours') + fmtLeaveDur(d.hoursTotal);
     resBox.innerHTML = '<div class="alert alert-success">' + msg + '</div>';
 
     // 有檔案 → 上傳
@@ -1312,7 +1319,7 @@ function renderHistory(requests) {
     }
     html += '<div class="card" style="margin-bottom:8px;padding:10px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-    html += '<div><strong style="font-size:14px;">' + _locName({leaveId: r.leaveId}, 'leave') + '</strong><span style="font-size:11px;color:#888;margin-left:6px;">' + r.hoursTotal + ' ' + t('app.hoursUnit') + '</span></div>';
+    html += '<div><strong style="font-size:14px;">' + _locName({leaveId: r.leaveId}, 'leave') + '</strong><span style="font-size:11px;color:#888;margin-left:6px;">' + fmtLeaveDur(r.hoursTotal) + '</span></div>';
     html += '<div style="color:' + statusColor + ';font-weight:600;font-size:13px;">' + statusText + '</div>';
     html += '</div>';
     html += '<div style="font-size:12px;color:#555;">' + r.startDate + (r.startTime ? ' ' + r.startTime : '') + ' ~ ' + r.endDate + (r.endTime ? ' ' + r.endTime : '') + '</div>';
@@ -1599,7 +1606,7 @@ function renderPending() {
       +     kindBadge
       +   '</div>'
       +   '<div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:10px;">'
-      +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + days + ' ' + t('app.daysUnit') + '</div>'
+      +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(hours) + '</div>'
       +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
       +   '</div>'
@@ -1622,7 +1629,7 @@ function showPendingDetail(requestId, kind) {
     + t('pending.det.applicant') + ': ' + r.employeeId + '\n'
     + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave') + '\n'
     + t('pending.det.range') + ': ' + r.startDate + ' ~ ' + r.endDate + '\n'
-    + t('pending.det.hours') + ': ' + (r.hoursTotal || 0) + ' ' + t('app.hoursUnit') + '\n'
+    + t('pending.det.hours') + ': ' + fmtLeaveDur(r.hoursTotal) + '\n'
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
     if (r.proofData.fileUrl) msg += t('pending.det.proofFile') + ': ' + r.proofData.fileUrl + '\n';
