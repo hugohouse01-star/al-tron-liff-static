@@ -366,7 +366,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.22';  // 特休申請規則前端提示：最少4h + 提前(單日3天/連續2天以上5天)
+var APP_VERSION = 'static-1.0.23';  // 主管 inbox 第三鈕「暫予准假待補件」+ 補件期限 prompt（天數/日期）
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -472,6 +472,11 @@ var I18N_DICTS = {
     'pending.btn.reject': '拒絕',
     'pending.btn.verify': '為證',
     'pending.btn.rejectProof': '退證明',
+    'pending.btn.conditional': '暫予准假',
+    'pending.cond.prompt': '補件期限：輸入「幾天後」(數字) 或日期 yyyy-mm-dd\n預設假期結束+3天 = {def}',
+    'pending.cond.notePrompt': '備註（可空）',
+    'pending.cond.badInput': '請輸入天數或 yyyy-mm-dd 日期',
+    'pending.cond.done': '✅ 已暫予准假，補件期限',
     'pending.confirm.approve': '確定准假？',
     'pending.confirm.verify': '確定通過證明覆核？',
     'pending.det.applicant': '申請人',
@@ -573,6 +578,11 @@ var I18N_DICTS = {
     'pending.btn.reject': 'Reject',
     'pending.btn.verify': 'Verify',
     'pending.btn.rejectProof': 'Reject proof',
+    'pending.btn.conditional': 'Conditional',
+    'pending.cond.prompt': 'Proof deadline: enter days (number) or a date yyyy-mm-dd\nDefault leave end + 3 days = {def}',
+    'pending.cond.notePrompt': 'Note (optional)',
+    'pending.cond.badInput': 'Enter a number of days or a yyyy-mm-dd date',
+    'pending.cond.done': '✅ Conditionally approved, proof due',
     'pending.confirm.approve': 'Approve this leave request?',
     'pending.confirm.verify': 'Verify this proof?',
     'pending.det.applicant': 'Applicant',
@@ -674,6 +684,11 @@ var I18N_DICTS = {
     'pending.btn.reject': 'ปฏิเสธ',
     'pending.btn.verify': 'รับรอง',
     'pending.btn.rejectProof': 'ปฏิเสธหลักฐาน',
+    'pending.btn.conditional': 'อนุมัติชั่วคราว',
+    'pending.cond.prompt': 'กำหนดส่งหลักฐาน: ใส่จำนวนวัน หรือวันที่ yyyy-mm-dd\nค่าเริ่มต้น วันสิ้นสุดการลา +3 วัน = {def}',
+    'pending.cond.notePrompt': 'หมายเหตุ (ไม่บังคับ)',
+    'pending.cond.badInput': 'กรุณาใส่จำนวนวันหรือวันที่ yyyy-mm-dd',
+    'pending.cond.done': '✅ อนุมัติชั่วคราวแล้ว กำหนดส่งหลักฐาน',
     'pending.confirm.approve': 'ยืนยันอนุมัติ?',
     'pending.confirm.verify': 'ยืนยันรับรองหลักฐาน?',
     'pending.det.applicant': 'ผู้ขอ',
@@ -816,7 +831,7 @@ var ACTION_MAP = {
   'webLiffMonthlyAttendance':        { action: 'monthlyAttendance', params: ['idToken', 'yearMonth'] },
   'webLiffTodayStatus':              { action: 'todayStatus',       params: ['idToken'] },
   'webLiffApprovalBundle':           { action: 'approvalBundle',    params: ['idToken'] },
-  'webLiffApproveLeave':             { action: 'approveLeave',      params: ['idToken', 'requestId', 'decision', 'note'] },
+  'webLiffApproveLeave':             { action: 'approveLeave',      params: ['idToken', 'requestId', 'decision', 'note', 'conditionalDeadline'] },
   'webLiffProofReview':              { action: 'proofReview',       params: ['idToken', 'requestId', 'decision', 'note'] },
   'webLiffUpdateProofData':          { action: 'updateProofData',   params: ['idToken', 'requestId', 'proofData'] },
   'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] }
@@ -1638,6 +1653,10 @@ function renderPending() {
       +     '<button onclick="onPendingApprove(\'' + r.requestId + '\',\'' + r._kind + '\',this)" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#06C755;color:white;font-weight:600;">' + okBtnLabel + '</button>'
       +     '<button onclick="openRejectModal(\'' + r._kind + '\',\'' + r.requestId + '\')" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#D85A30;color:white;font-weight:600;">' + rejectBtnLabel + '</button>'
       +   '</div>'
+      // v1.0.152：第一段審核加「暫予准假待補件」第三鈕（allow_conditional 關掉的假別不顯示）
+      +   ((r._kind === 'approve' && r.allowConditional !== false)
+          ? '<button onclick="onPendingConditional(\'' + r.requestId + '\',\'' + r.endDate + '\',this)" style="margin-top:6px;width:100%;padding:8px;font-size:12px;border:none;border-radius:5px;background:#F59E0B;color:white;font-weight:600;">' + t('pending.btn.conditional') + (r.requireProof ? ' ★' : '') + '</button>'
+          : '')
       + '</div>';
   });
   box.innerHTML = html;
@@ -1684,6 +1703,36 @@ async function onPendingApprove(requestId, kind, btn) {
     alert(e.message || e);
     btn.disabled = false;
   }
+}
+
+// v1.0.152：暫予准假待補件 — 問補件期限（輸入天數或 yyyy-mm-dd 日期，預設假期結束+3）
+async function onPendingConditional(requestId, endDate, btn) {
+  if (!SESSION || !SESSION.idToken) return;
+  function addDays(iso, n) {
+    var p = String(iso).split('-');
+    var d = new Date(Date.UTC(+p[0], (+p[1]) - 1, +p[2]));
+    if (isNaN(d.getTime())) d = new Date();
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  var baseEnd = (endDate && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) ? endDate : new Date().toISOString().slice(0, 10);
+  var def = addDays(baseEnd, 3);
+  var ans = prompt(t('pending.cond.prompt').replace('{def}', def), '3');
+  if (ans === null) return;
+  ans = String(ans).trim();
+  var deadline;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ans)) deadline = ans;
+  else if (/^\d+$/.test(ans)) deadline = addDays(baseEnd, parseInt(ans, 10));
+  else if (ans === '') deadline = def;
+  else { alert(t('pending.cond.badInput')); return; }
+  var note = prompt(t('pending.cond.notePrompt'), '') || '';
+  btn.disabled = true;
+  try {
+    var res = await rpc('webLiffApproveLeave', [SESSION.idToken, requestId, 'conditional', note, deadline]);
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); btn.disabled = false; return; }
+    alert(t('pending.cond.done') + ' ' + (res.data && res.data.proofDeadline ? res.data.proofDeadline : deadline));
+    loadPendingTab(true);
+  } catch (e) { alert(e.message || e); btn.disabled = false; }
 }
 
 function openRejectModal(kind, requestId) {
