@@ -273,12 +273,7 @@
             <label data-i18n="apply.proofNote">證明說明（可選）</label>
             <textarea id="appProofNote"></textarea>
           </div>
-          <div class="field">
-            <label data-i18n="apply.delegates">職務代理人（最多 3 位）</label>
-            <select id="appDelegate1" style="margin-bottom:4px;"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
-            <select id="appDelegate2" style="margin-bottom:4px;"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
-            <select id="appDelegate3"><option value="" data-i18n="apply.notSpecified">— 不指定 —</option></select>
-          </div>
+          <!-- v1.0.157：職務代理人選項已移除(改主管後台指派「知會人員」) -->
           <button class="btn btn-primary" id="appSubmitBtn" onclick="onSubmitLeave(this)" data-i18n="apply.submit">送出請假</button>
         </div>
         <div id="appResult"></div>
@@ -367,7 +362,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.24';  // 知會人員 LIFF：待我確認卡(一鍵確認)+ 歷程/簽核顯示知會 X/Y
+var APP_VERSION = 'static-1.0.25';  // 移除 LIFF 請假表單的職務代理人欄(改主管後台指派知會人員)
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
