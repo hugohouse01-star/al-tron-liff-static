@@ -287,6 +287,7 @@
 
     <!-- 歷程 -->
     <div id="paneHistory" class="pane">
+      <div id="ackContainer"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <strong data-i18n="history.title">我的請假歷程</strong>
         <select id="histYear" style="padding:6px;border:1px solid #d0d3d8;border-radius:5px;font-size:13px;"></select>
@@ -366,7 +367,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.23';  // 主管 inbox 第三鈕「暫予准假待補件」+ 補件期限 prompt（天數/日期）
+var APP_VERSION = 'static-1.0.24';  // 知會人員 LIFF：待我確認卡(一鍵確認)+ 歷程/簽核顯示知會 X/Y
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -418,6 +419,7 @@ var I18N_DICTS = {
     'history.empty': '本年尚無請假紀錄',
     'history.status.approved': '✓ 已準假', 'history.status.rejected': '✗ 已拒絕',
     'history.status.cancelled': '已取消', 'history.status.pending': '⏳ 待簽',
+    'ack.cardTitle': '待我確認（同仁請假知會）', 'ack.confirmBtn': '我知道了', 'ack.statusLabel': '知會',
     'history.proof.pending': '📌 待補證明', 'history.proof.submitted': '⏳ 待覆核',
     'history.proof.verified': '✅ 已覆核', 'history.proof.rejected': '⚠ 證明被退',
     'history.addProof': '📎 補證明',
@@ -524,6 +526,7 @@ var I18N_DICTS = {
     'history.empty': 'No records this year',
     'history.status.approved': '✓ Approved', 'history.status.rejected': '✗ Rejected',
     'history.status.cancelled': 'Cancelled', 'history.status.pending': '⏳ Pending',
+    'ack.cardTitle': 'Awaiting my acknowledgement', 'ack.confirmBtn': 'Got it', 'ack.statusLabel': 'Ack',
     'history.proof.pending': '📌 Awaiting proof', 'history.proof.submitted': '⏳ Under review',
     'history.proof.verified': '✅ Verified', 'history.proof.rejected': '⚠ Proof rejected',
     'history.addProof': '📎 Add proof',
@@ -630,6 +633,7 @@ var I18N_DICTS = {
     'history.empty': 'ไม่มีบันทึกในปีนี้',
     'history.status.approved': '✓ อนุมัติ', 'history.status.rejected': '✗ ปฏิเสธ',
     'history.status.cancelled': 'ยกเลิก', 'history.status.pending': '⏳ รอ',
+    'ack.cardTitle': 'รอฉันรับทราบ (แจ้งการลา)', 'ack.confirmBtn': 'รับทราบ', 'ack.statusLabel': 'รับทราบ',
     'history.proof.pending': '📌 รอหลักฐาน', 'history.proof.submitted': '⏳ กำลังตรวจ',
     'history.proof.verified': '✅ ผ่าน', 'history.proof.rejected': '⚠ หลักฐานถูกปฏิเสธ',
     'history.addProof': '📎 เพิ่มหลักฐาน',
@@ -834,7 +838,9 @@ var ACTION_MAP = {
   'webLiffApproveLeave':             { action: 'approveLeave',      params: ['idToken', 'requestId', 'decision', 'note', 'conditionalDeadline'] },
   'webLiffProofReview':              { action: 'proofReview',       params: ['idToken', 'requestId', 'decision', 'note'] },
   'webLiffUpdateProofData':          { action: 'updateProofData',   params: ['idToken', 'requestId', 'proofData'] },
-  'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] }
+  'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] },
+  'webLiffGetMyPendingAcks':         { action: 'myAcks',            params: ['idToken'] },
+  'webLiffAckConfirm':               { action: 'ackConfirm',        params: ['idToken', 'ackId'] }
 };
 
 async function rpc(fn, args) {
@@ -1334,8 +1340,42 @@ async function loadHistoryTab(forceYear) {
   }
 }
 
+// v1.0.157：知會「待我確認」(LIFF) — 載入 + 渲染 + 一鍵確認
+async function loadMyAcksLiff() {
+  var box = $('ackContainer'); if (!box) return;
+  if (!SESSION || !SESSION.idToken) return;
+  try {
+    var res = await rpc('webLiffGetMyPendingAcks', [SESSION.idToken]);
+    var acks = (res && res.success && res.data && res.data.acks) || [];
+    if (!acks.length) { box.innerHTML = ''; return; }
+    var h = '<div class="card" style="margin-bottom:10px;padding:12px;background:#FFF8E1;border:1px solid #FFE082;">';
+    h += '<div style="font-weight:600;color:#F57C00;margin-bottom:8px;">📣 ' + t('ack.cardTitle') + '（' + acks.length + '）</div>';
+    acks.forEach(function(a) {
+      var period = (a.startDate === a.endDate) ? a.startDate : (a.startDate + ' ~ ' + a.endDate);
+      h += '<div id="ackrow_' + a.ackId + '" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #FFE082;">';
+      h += '<div style="font-size:13px;"><strong>' + escapeHtml(a.employeeName || a.employeeId) + '</strong> ' + escapeHtml(a.leaveName || a.leaveId) + '<br><span style="font-size:11px;color:#777;">' + period + '</span></div>';
+      h += '<button onclick="onAckConfirmLiff(\'' + a.ackId + '\',this)" style="padding:6px 12px;font-size:12px;border:none;border-radius:5px;background:#06C755;color:white;font-weight:600;white-space:nowrap;">' + t('ack.confirmBtn') + '</button>';
+      h += '</div>';
+    });
+    h += '</div>';
+    box.innerHTML = h;
+  } catch (e) { box.innerHTML = ''; }
+}
+
+async function onAckConfirmLiff(ackId, btn) {
+  if (!SESSION || !SESSION.idToken) return;
+  btn.disabled = true;
+  try {
+    var res = await rpc('webLiffAckConfirm', [SESSION.idToken, ackId]);
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); btn.disabled = false; return; }
+    var row = $('ackrow_' + ackId); if (row) row.remove();
+    loadMyAcksLiff();
+  } catch (e) { alert(e.message || e); btn.disabled = false; }
+}
+
 function renderHistory(requests) {
   var box = $('histContainer'); box.className = '';
+  loadMyAcksLiff();
   if (!requests.length) { box.innerHTML = '<div class="empty">' + t('history.empty') + '</div>'; return; }
   var html = '';
   requests.forEach(function(r) {
@@ -1354,6 +1394,11 @@ function renderHistory(requests) {
     }
     if (needProof) {
       subBadge += '<button onclick="openProofModal(\'' + r.requestId + '\')" style="margin-top:6px;padding:6px 10px;font-size:12px;border:1px solid #06C755;background:white;color:#06C755;border-radius:5px;cursor:pointer;">' + t('history.addProof') + '</button>';
+    }
+    // v1.0.157：知會確認進度(本人也看得到)
+    if (r.ackSummary && r.ackSummary.total > 0) {
+      var _ad = r.ackSummary.confirmed >= r.ackSummary.total;
+      subBadge += '<div style="font-size:11px;color:' + (_ad ? '#4caf50' : '#ff9800') + ';margin-top:4px;">' + (_ad ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + '</div>';
     }
     html += '<div class="card" style="margin-bottom:8px;padding:10px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
@@ -1647,6 +1692,7 @@ function renderPending() {
       +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(hours) + '</div>'
       +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
+      +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + '</div>' : '')
       +   '</div>'
       +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
       +     '<button onclick="showPendingDetail(\'' + r.requestId + '\',\'' + r._kind + '\')" class="btn-secondary" style="padding:8px;font-size:12px;border-radius:5px;">' + t('pending.btn.detail') + '</button>'
