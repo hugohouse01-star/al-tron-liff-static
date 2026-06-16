@@ -414,7 +414,7 @@ var I18N_DICTS = {
     'history.empty': '本年尚無請假紀錄',
     'history.status.approved': '✓ 已準假', 'history.status.rejected': '✗ 已拒絕',
     'history.status.cancelled': '已取消', 'history.status.pending': '⏳ 待簽',
-    'ack.cardTitle': '待我確認（同仁請假知會）', 'ack.confirmBtn': '我知道了', 'ack.statusLabel': '知會',
+    'ack.cardTitle': '待我確認（同仁請假知會）', 'ack.confirmBtn': '我知道了', 'ack.statusLabel': '知會', 'ack.pendingLabel': '未確認',
     'history.proof.pending': '📌 待補證明', 'history.proof.submitted': '⏳ 待覆核',
     'history.proof.verified': '✅ 已覆核', 'history.proof.rejected': '⚠ 證明被退',
     'history.addProof': '📎 補證明',
@@ -525,7 +525,7 @@ var I18N_DICTS = {
     'history.empty': 'No records this year',
     'history.status.approved': '✓ Approved', 'history.status.rejected': '✗ Rejected',
     'history.status.cancelled': 'Cancelled', 'history.status.pending': '⏳ Pending',
-    'ack.cardTitle': 'Awaiting my acknowledgement', 'ack.confirmBtn': 'Got it', 'ack.statusLabel': 'Ack',
+    'ack.cardTitle': 'Awaiting my acknowledgement', 'ack.confirmBtn': 'Got it', 'ack.statusLabel': 'Ack', 'ack.pendingLabel': 'Not yet',
     'history.proof.pending': '📌 Awaiting proof', 'history.proof.submitted': '⏳ Under review',
     'history.proof.verified': '✅ Verified', 'history.proof.rejected': '⚠ Proof rejected',
     'history.addProof': '📎 Add proof',
@@ -636,7 +636,7 @@ var I18N_DICTS = {
     'history.empty': 'ไม่มีบันทึกในปีนี้',
     'history.status.approved': '✓ อนุมัติ', 'history.status.rejected': '✗ ปฏิเสธ',
     'history.status.cancelled': 'ยกเลิก', 'history.status.pending': '⏳ รอ',
-    'ack.cardTitle': 'รอฉันรับทราบ (แจ้งการลา)', 'ack.confirmBtn': 'รับทราบ', 'ack.statusLabel': 'รับทราบ',
+    'ack.cardTitle': 'รอฉันรับทราบ (แจ้งการลา)', 'ack.confirmBtn': 'รับทราบ', 'ack.statusLabel': 'รับทราบ', 'ack.pendingLabel': 'ยังไม่ยืนยัน',
     'history.proof.pending': '📌 รอหลักฐาน', 'history.proof.submitted': '⏳ กำลังตรวจ',
     'history.proof.verified': '✅ ผ่าน', 'history.proof.rejected': '⚠ หลักฐานถูกปฏิเสธ',
     'history.addProof': '📎 เพิ่มหลักฐาน',
@@ -1421,7 +1421,8 @@ function renderHistory(requests) {
     // v1.0.157：知會確認進度(本人也看得到)
     if (r.ackSummary && r.ackSummary.total > 0) {
       var _ad = r.ackSummary.confirmed >= r.ackSummary.total;
-      subBadge += '<div style="font-size:11px;color:' + (_ad ? '#4caf50' : '#ff9800') + ';margin-top:4px;">' + (_ad ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + '</div>';
+      var _pend = (r.ackSummary.pending && r.ackSummary.pending.length) ? ('<br><span style="color:#e65100;">' + t('ack.pendingLabel') + '：' + r.ackSummary.pending.map(escapeHtml).join('、') + '</span>') : '';
+      subBadge += '<div style="font-size:11px;color:' + (_ad ? '#4caf50' : '#ff9800') + ';margin-top:4px;">' + (_ad ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + _pend + '</div>';
     }
     html += '<div class="card" style="margin-bottom:8px;padding:10px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
@@ -1735,7 +1736,7 @@ function renderPending() {
       +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(hours) + '</div>'
       +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
-      +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + '</div>' : '')
+      +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + ((r.ackSummary.pending && r.ackSummary.pending.length) ? '（' + t('ack.pendingLabel') + '：' + r.ackSummary.pending.map(escapeHtml).join('、') + '）' : '') + '</div>' : '')
       +   '</div>'
       +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
       +     '<button onclick="showPendingDetail(\'' + r.requestId + '\',\'' + r._kind + '\')" class="btn-secondary" style="padding:8px;font-size:12px;border-radius:5px;">' + t('pending.btn.detail') + '</button>'
