@@ -418,6 +418,10 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 待補證明', 'history.proof.submitted': '⏳ 待覆核',
     'history.proof.verified': '✅ 已覆核', 'history.proof.rejected': '⚠ 證明被退',
     'history.addProof': '📎 補證明',
+    'history.cancel': '🗑 取消請假',
+    'history.cancelConfirm': '確定要取消這筆請假嗎？取消後若已扣假會自動退還。',
+    'history.cancelOk': '已取消請假',
+    'history.cancelFail': '取消失敗：',
     'cal.tab': '月曆', 'cal.summary': '本月統計',
     'cal.workDays': '出勤', 'cal.leaveDays': '請假', 'cal.holidayDays': '假日',
     'cal.totalHours': '總工時', 'cal.lateDays': '遲到', 'cal.absentDays': '缺勤',
@@ -525,6 +529,10 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 Awaiting proof', 'history.proof.submitted': '⏳ Under review',
     'history.proof.verified': '✅ Verified', 'history.proof.rejected': '⚠ Proof rejected',
     'history.addProof': '📎 Add proof',
+    'history.cancel': '🗑 Cancel leave',
+    'history.cancelConfirm': 'Cancel this leave request? Any deducted quota will be refunded.',
+    'history.cancelOk': 'Leave cancelled',
+    'history.cancelFail': 'Cancel failed: ',
     'cal.tab': 'Calendar', 'cal.summary': 'Monthly stats',
     'cal.workDays': 'Work', 'cal.leaveDays': 'Leave', 'cal.holidayDays': 'Holiday',
     'cal.totalHours': 'Total hrs', 'cal.lateDays': 'Late', 'cal.absentDays': 'Absent',
@@ -632,6 +640,10 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 รอหลักฐาน', 'history.proof.submitted': '⏳ กำลังตรวจ',
     'history.proof.verified': '✅ ผ่าน', 'history.proof.rejected': '⚠ หลักฐานถูกปฏิเสธ',
     'history.addProof': '📎 เพิ่มหลักฐาน',
+    'history.cancel': '🗑 ยกเลิกการลา',
+    'history.cancelConfirm': 'ยืนยันยกเลิกการลานี้หรือไม่? หากหักวันลาแล้วจะคืนให้อัตโนมัติ',
+    'history.cancelOk': 'ยกเลิกการลาแล้ว',
+    'history.cancelFail': 'ยกเลิกไม่สำเร็จ: ',
     'cal.tab': 'ปฏิทิน', 'cal.summary': 'สถิติเดือน',
     'cal.workDays': 'ทำงาน', 'cal.leaveDays': 'ลา', 'cal.holidayDays': 'หยุด',
     'cal.totalHours': 'ชม.รวม', 'cal.lateDays': 'สาย', 'cal.absentDays': 'ขาด',
@@ -827,6 +839,7 @@ var ACTION_MAP = {
   'webLiffListLeaveTypesForEmployee':{ action: 'listLeaveTypes',    params: ['idToken'] },
   'webLiffListEmployeesForDelegate': { action: 'listEmployees',     params: ['idToken'] },
   'webLiffMyLeaveHistory':           { action: 'myLeaveHistory',    params: ['idToken', 'year'] },
+  'webLiffCancelLeave':              { action: 'cancelLeave',       params: ['idToken', 'requestId', 'reason'] },
   'webLiffMonthlyAttendance':        { action: 'monthlyAttendance', params: ['idToken', 'yearMonth'] },
   'webLiffTodayStatus':              { action: 'todayStatus',       params: ['idToken'] },
   'webLiffApprovalBundle':           { action: 'approvalBundle',    params: ['idToken'] },
@@ -1408,9 +1421,29 @@ function renderHistory(requests) {
     html += '<div style="font-size:12px;color:#555;">' + r.startDate + (r.startTime ? ' ' + r.startTime : '') + ' ~ ' + r.endDate + (r.endTime ? ' ' + r.endTime : '') + '</div>';
     if (r.reason) html += '<div style="font-size:11px;color:#666;margin-top:4px;">' + t('apply.reason') + '：' + escapeHtml(r.reason) + '</div>';
     html += subBadge;
+    // v1.0.182：本人可自助取消 — 待簽(pending)隨時可取消;已準(approved)只有尚未開始(start≥今天)可取消
+    var _todayStr = new Date().toISOString().slice(0, 10);
+    var _canCancel = (r.status === 'pending') || (r.status === 'approved' && String(r.startDate) >= _todayStr);
+    if (_canCancel) {
+      html += '<button onclick="cancelMyLeave(\'' + r.requestId + '\')" style="margin-top:8px;padding:6px 10px;font-size:12px;border:1px solid #c82333;background:white;color:#c82333;border-radius:5px;cursor:pointer;">' + t('history.cancel') + '</button>';
+    }
     html += '</div>';
   });
   box.innerHTML = html;
+}
+
+// v1.0.182：員工自助取消請假
+async function cancelMyLeave(requestId) {
+  if (!requestId) return;
+  if (!confirm(t('history.cancelConfirm'))) return;
+  try {
+    var res = await rpc('webLiffCancelLeave', [SESSION.idToken, requestId, '']);
+    if (!res || !res.success) { alert(t('history.cancelFail') + ((res && res.message) || '')); return; }
+    alert(t('history.cancelOk'));
+    loadHistoryTab(Number($('histYear').value));   // 重新載入歷程
+  } catch (e) {
+    alert(t('history.cancelFail') + (e.message || e));
+  }
 }
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
