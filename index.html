@@ -1771,9 +1771,9 @@ function renderPending() {
 }
 
 // v1.0.186：複審頁的證明改成可點擊超連結(開啟/下載),不再只是純文字 URL
-// v1.0.189：用 fileId 組「直接內容網址」(uc?export=view),避開 Drive 檢視器頁
+// v1.0.191：用 lh3.googleusercontent.com/d/ID — Google 內容 CDN,公開檔免帳號選擇(drive.google.com 任何網址都會問帳號)
 function _driveDirectUrl(fileId, fallback) {
-  return fileId ? ('https://drive.google.com/uc?export=view&id=' + fileId) : (fallback || '');
+  return fileId ? ('https://lh3.googleusercontent.com/d/' + fileId) : (fallback || '');
 }
 // v1.0.190：證明連結用「外部瀏覽器」開,繞過 LINE 內建瀏覽器多 Google 帳號選擇視窗
 function liffOpenExt(url) {
