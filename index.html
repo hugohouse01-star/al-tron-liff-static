@@ -1783,14 +1783,16 @@ function liffOpenExt(url) {
 }
 function _liffProofLinksHtml(pd) {
   if (!pd) return '';
-  var a = 'style="color:#06C755;text-decoration:underline;font-weight:600;cursor:pointer;"';
-  var fileHref  = _driveDirectUrl(pd.fileId, pd.fileUrl);
-  var photoHref = _driveDirectUrl(pd.photoFileId, pd.photoUrl);
-  function lk(u){ return "liffOpenExt('" + String(u).replace(/'/g, "\\'") + "');return false;"; }
-  var h = '<div style="margin-top:6px;">';
-  if (fileHref)  h += '<div>📁 <a href="javascript:void(0)" onclick="' + lk(fileHref) + '" ' + a + '>' + escapeHtml(pd.fileName || t('pending.det.proofFile')) + '</a></div>';
-  if (photoHref) h += '<div>📷 <a href="javascript:void(0)" onclick="' + lk(photoHref) + '" ' + a + '>' + t('pending.det.proofPhoto') + '</a></div>';
-  if (pd.link)   h += '<div>🔗 <a href="javascript:void(0)" onclick="' + lk(pd.link) + '" ' + a + '>' + t('pending.det.proofLink') + '</a></div>';
+  // v1.0.192：證明改打系統代理 viewUrl(script.google.com),不碰 drive.google.com → 免 Google 帳號選擇、任何檔型都能看
+  var fileHref  = pd.fileViewUrl  || _driveDirectUrl(pd.fileId, pd.fileUrl);
+  var photoHref = pd.photoViewUrl || _driveDirectUrl(pd.photoFileId, pd.photoUrl);
+  var aS = 'style="color:#06C755;text-decoration:underline;font-weight:600;cursor:pointer;"';
+  function esc(u){ return String(u).replace(/'/g, "\\'"); }
+  function lk(icon, label, u){ return '<div style="margin-top:4px;">' + icon + ' <a href="javascript:void(0)" onclick="liffOpenExt(\'' + esc(u) + '\');return false;" ' + aS + '>' + label + '</a></div>'; }
+  var h = '<div style="margin-top:6px;font-size:12px;">';
+  if (photoHref) h += lk('📷', t('pending.det.proofPhoto'), photoHref);
+  if (fileHref)  h += lk('📁', escapeHtml(pd.fileName || t('pending.det.proofFile')), fileHref);
+  if (pd.link)   h += lk('🔗', t('pending.det.proofLink'), pd.link);
   if (pd.note)   h += '<div>📝 ' + escapeHtml(pd.note) + '</div>';
   h += '</div>';
   return h;
