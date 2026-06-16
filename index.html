@@ -1771,14 +1771,20 @@ function renderPending() {
 }
 
 // v1.0.186：複審頁的證明改成可點擊超連結(開啟/下載),不再只是純文字 URL
+// v1.0.189：用 fileId 組「直接內容網址」(uc?export=view),避開 Drive 檢視器頁在 LINE webview 跳 Google 登入
+function _driveDirectUrl(fileId, fallback) {
+  return fileId ? ('https://drive.google.com/uc?export=view&id=' + fileId) : (fallback || '');
+}
 function _liffProofLinksHtml(pd) {
   if (!pd) return '';
   var a = 'target="_blank" rel="noopener" style="color:#06C755;text-decoration:underline;font-weight:600;"';
+  var fileHref  = _driveDirectUrl(pd.fileId, pd.fileUrl);
+  var photoHref = _driveDirectUrl(pd.photoFileId, pd.photoUrl);
   var h = '<div style="margin-top:6px;">';
-  if (pd.fileUrl)  h += '<div>📁 <a href="' + pd.fileUrl + '" ' + a + '>' + escapeHtml(pd.fileName || t('pending.det.proofFile')) + '</a></div>';
-  if (pd.photoUrl) h += '<div>📷 <a href="' + pd.photoUrl + '" ' + a + '>' + t('pending.det.proofPhoto') + '</a></div>';
-  if (pd.link)     h += '<div>🔗 <a href="' + pd.link + '" ' + a + '>' + t('pending.det.proofLink') + '</a></div>';
-  if (pd.note)     h += '<div>📝 ' + escapeHtml(pd.note) + '</div>';
+  if (fileHref)  h += '<div>📁 <a href="' + fileHref + '" ' + a + '>' + escapeHtml(pd.fileName || t('pending.det.proofFile')) + '</a></div>';
+  if (photoHref) h += '<div>📷 <a href="' + photoHref + '" ' + a + '>' + t('pending.det.proofPhoto') + '</a></div>';
+  if (pd.link)   h += '<div>🔗 <a href="' + pd.link + '" ' + a + '>' + t('pending.det.proofLink') + '</a></div>';
+  if (pd.note)   h += '<div>📝 ' + escapeHtml(pd.note) + '</div>';
   h += '</div>';
   return h;
 }
