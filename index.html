@@ -1771,19 +1771,26 @@ function renderPending() {
 }
 
 // v1.0.186：複審頁的證明改成可點擊超連結(開啟/下載),不再只是純文字 URL
-// v1.0.189：用 fileId 組「直接內容網址」(uc?export=view),避開 Drive 檢視器頁在 LINE webview 跳 Google 登入
+// v1.0.189：用 fileId 組「直接內容網址」(uc?export=view),避開 Drive 檢視器頁
 function _driveDirectUrl(fileId, fallback) {
   return fileId ? ('https://drive.google.com/uc?export=view&id=' + fileId) : (fallback || '');
 }
+// v1.0.190：證明連結用「外部瀏覽器」開,繞過 LINE 內建瀏覽器多 Google 帳號選擇視窗
+function liffOpenExt(url) {
+  if (!url) return;
+  try { if (window.liff && liff.openWindow) { liff.openWindow({ url: url, external: true }); return; } } catch (e) {}
+  window.open(url, '_blank');
+}
 function _liffProofLinksHtml(pd) {
   if (!pd) return '';
-  var a = 'target="_blank" rel="noopener" style="color:#06C755;text-decoration:underline;font-weight:600;"';
+  var a = 'style="color:#06C755;text-decoration:underline;font-weight:600;cursor:pointer;"';
   var fileHref  = _driveDirectUrl(pd.fileId, pd.fileUrl);
   var photoHref = _driveDirectUrl(pd.photoFileId, pd.photoUrl);
+  function lk(u){ return "liffOpenExt('" + String(u).replace(/'/g, "\\'") + "');return false;"; }
   var h = '<div style="margin-top:6px;">';
-  if (fileHref)  h += '<div>📁 <a href="' + fileHref + '" ' + a + '>' + escapeHtml(pd.fileName || t('pending.det.proofFile')) + '</a></div>';
-  if (photoHref) h += '<div>📷 <a href="' + photoHref + '" ' + a + '>' + t('pending.det.proofPhoto') + '</a></div>';
-  if (pd.link)   h += '<div>🔗 <a href="' + pd.link + '" ' + a + '>' + t('pending.det.proofLink') + '</a></div>';
+  if (fileHref)  h += '<div>📁 <a href="javascript:void(0)" onclick="' + lk(fileHref) + '" ' + a + '>' + escapeHtml(pd.fileName || t('pending.det.proofFile')) + '</a></div>';
+  if (photoHref) h += '<div>📷 <a href="javascript:void(0)" onclick="' + lk(photoHref) + '" ' + a + '>' + t('pending.det.proofPhoto') + '</a></div>';
+  if (pd.link)   h += '<div>🔗 <a href="javascript:void(0)" onclick="' + lk(pd.link) + '" ' + a + '>' + t('pending.det.proofLink') + '</a></div>';
   if (pd.note)   h += '<div>📝 ' + escapeHtml(pd.note) + '</div>';
   h += '</div>';
   return h;
