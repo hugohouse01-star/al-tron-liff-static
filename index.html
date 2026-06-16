@@ -1207,8 +1207,15 @@ function loadEmployeesForDelegate() {
   }).catch(function() {});
 }
 
+// v1.0.183：申請表單的提示一律 inline 顯示並捲到看得到(手機 alert 可能在摺疊線以下被忽略)
+function _applyErr(msg) {
+  var b = $('appResult');
+  if (b) { b.innerHTML = '<div class="alert alert-danger">⚠ ' + msg + '</div>';
+           try { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {} }
+  else { alert(msg); }
+}
 async function onSubmitLeave(btn) {
-  if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
+  if (!SESSION || !SESSION.idToken) { _applyErr(t('app.sessionLost')); return; }
   var leaveId = $('appLeaveId').value;
   var startDate = $('appStartDate').value;
   var endDate = $('appEndDate').value;
@@ -1216,9 +1223,9 @@ async function onSubmitLeave(btn) {
   var startTime = fullDay ? '' : $('appStartTime').value;
   var endTime = fullDay ? '' : $('appEndTime').value;
   var reason = ($('appReason').value || '').trim();
-  if (!leaveId || !startDate || !endDate) { alert(t('apply.startDate')); return; }
-  if (!reason) { alert(t('apply.reason')); return; }
-  if (endDate < startDate) { alert(t('apply.startDate')); return; }
+  if (!leaveId || !startDate || !endDate) { _applyErr(t('apply.startDate')); return; }
+  if (!reason) { _applyErr(t('apply.reason')); return; }
+  if (endDate < startDate) { _applyErr(t('apply.startDate')); return; }
   // 同日有填時間：扣午休後 >= 8h 看起來是整天 → 跳確認，確定就轉成全天
   if (!fullDay && startDate === endDate && startTime && endTime) {
     var wh = _liffLeaveWorkHours(startTime, endTime);
@@ -1233,14 +1240,14 @@ async function onSubmitLeave(btn) {
   if (leaveId === 'annual') {
     var annHours = fullDay ? 8 : (startDate === endDate ? _liffLeaveWorkHours(startTime, endTime) : 8);
     var annMin = ANNUAL_SPECIAL ? 0.5 : 4;  // v1.0.158：外籍 0.5h
-    if (annHours < annMin) { alert(t('apply.annualMinHours').replace('4', annMin)); return; }
+    if (annHours < annMin) { _applyErr(t('apply.annualMinHours').replace('4', annMin)); return; }
     var annToday = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
     var annStart = new Date(startDate + 'T00:00:00');
     var annGap = Math.round((annStart.getTime() - annToday.getTime()) / 86400000);
     var annMulti = (startDate !== endDate);
     var annNeed = annMulti ? 5 : 3;
     if (annGap < annNeed) {
-      alert(t(annMulti ? 'apply.annualLeadMulti' : 'apply.annualLeadSingle').replace('{gap}', annGap));
+      _applyErr(t(annMulti ? 'apply.annualLeadMulti' : 'apply.annualLeadSingle').replace('{gap}', annGap));
       return;
     }
   }
@@ -1256,11 +1263,11 @@ async function onSubmitLeave(btn) {
   var d3 = $('appDelegate3') ? $('appDelegate3').value : '';
   var delegates = [d1, d2, d3].filter(function(x){ return x; }).join(',');
   if (leaveId === 'bereavement') {
-    if (!relation) { alert(t('apply.relation')); return; }
-    if (!relativeName) { alert(t('apply.relativeName')); return; }
+    if (!relation) { _applyErr(t('apply.relation')); return; }
+    if (!relativeName) { _applyErr(t('apply.relativeName')); return; }
   }
   if (['bereavement','marriage','maternity','paternity','prenatal_checkup','miscarriage'].indexOf(leaveId) >= 0) {
-    if (!eventDate) { alert(t('apply.eventDate')); return; }
+    if (!eventDate) { _applyErr(t('apply.eventDate') + '（' + t('apply.eventDateHint') + '）'); return; }
   }
   var proofData = {};
   if (proofUrl) proofData.link = proofUrl;
@@ -1280,11 +1287,14 @@ async function onSubmitLeave(btn) {
     }]);
     btn.disabled = false; btn.textContent = t('apply.submit');
     if (!res || !res.success) {
-      resBox.innerHTML = '<div class="alert alert-danger">❌ ' + ((res && res.message) || 'fail') + '</div>'; return;
+      resBox.innerHTML = '<div class="alert alert-danger">❌ ' + ((res && res.message) || 'fail') + '</div>';
+      try { resBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+      return;
     }
     var d = res.data;
     var msg = t('apply.success') + d.requestId + '<br>' + t('apply.successHours') + fmtLeaveDur(d.hoursTotal);
     resBox.innerHTML = '<div class="alert alert-success">' + msg + '</div>';
+    try { resBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
 
     // 有檔案 → 上傳
     if (proofFile) {
