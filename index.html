@@ -473,6 +473,9 @@ var I18N_DICTS = {
     'pending.btn.reject': '拒絕',
     'pending.btn.verify': '為證',
     'pending.btn.rejectProof': '退證明',
+    'pending.btn.waiveApprove': '免證明准假',
+    'pending.btn.rejectLeave': '退回',
+    'pending.awaitProof': '待補件',
     'pending.btn.conditional': '暫予准假',
     'pending.cond.prompt': '補件期限：輸入「幾天後」(數字) 或日期 yyyy-mm-dd\n預設假期結束+3天 = {def}',
     'pending.cond.notePrompt': '備註（可空）',
@@ -585,6 +588,9 @@ var I18N_DICTS = {
     'pending.btn.reject': 'Reject',
     'pending.btn.verify': 'Verify',
     'pending.btn.rejectProof': 'Reject proof',
+    'pending.btn.waiveApprove': 'Approve (no proof)',
+    'pending.btn.rejectLeave': 'Reject',
+    'pending.awaitProof': 'Awaiting proof',
     'pending.btn.conditional': 'Conditional',
     'pending.cond.prompt': 'Proof deadline: enter days (number) or a date yyyy-mm-dd\nDefault leave end + 3 days = {def}',
     'pending.cond.notePrompt': 'Note (optional)',
@@ -696,6 +702,9 @@ var I18N_DICTS = {
     'pending.btn.approve': 'อนุมัติ',
     'pending.btn.reject': 'ปฏิเสธ',
     'pending.btn.verify': 'รับรอง',
+    'pending.btn.waiveApprove': 'อนุมัติ (ไม่ต้องหลักฐาน)',
+    'pending.btn.rejectLeave': 'ปฏิเสธ',
+    'pending.awaitProof': 'รอหลักฐาน',
     'pending.btn.rejectProof': 'ปฏิเสธหลักฐาน',
     'pending.btn.conditional': 'อนุมัติชั่วคราว',
     'pending.cond.prompt': 'กำหนดส่งหลักฐาน: ใส่จำนวนวัน หรือวันที่ yyyy-mm-dd\nค่าเริ่มต้น วันสิ้นสุดการลา +3 วัน = {def}',
@@ -1437,7 +1446,8 @@ function renderHistory(requests) {
     html += subBadge;
     // v1.0.182：本人可自助取消 — 待簽(pending)隨時可取消;已準(approved)只有尚未開始(start≥今天)可取消
     var _todayStr = new Date().toISOString().slice(0, 10);
-    var _canCancel = (r.status === 'pending') || (r.status === 'approved' && String(r.startDate) >= _todayStr);
+    var _awaitProof2 = (r.proofStatus === 'pending_proof' || r.proofStatus === 'rejected_at_review');
+    var _canCancel = (r.status === 'pending') || (r.status === 'approved' && (String(r.startDate) >= _todayStr || _awaitProof2));
     if (_canCancel) {
       html += '<button onclick="cancelMyLeave(\'' + r.requestId + '\')" style="margin-top:8px;padding:6px 10px;font-size:12px;border:1px solid #c82333;background:white;color:#c82333;border-radius:5px;cursor:pointer;">' + t('history.cancel') + '</button>';
     }
@@ -1728,8 +1738,11 @@ function renderPending() {
                   : r.startDate + ' ~ ' + r.endDate;
     var hours = Number(r.hoursTotal || 0);
     var days = Math.round((hours / 8) * 10) / 10;
-    var okBtnLabel = (r._kind === 'approve') ? t('pending.btn.approve') : t('pending.btn.verify');
-    var rejectBtnLabel = (r._kind === 'approve') ? t('pending.btn.reject') : t('pending.btn.rejectProof');
+    // v1.0.187：proof 卡分兩種 — submitted=待複審(通過/退回補件);pending_proof|rejected_at_review=待補件(免證明准假/退回整張假)
+    var _awaitProof = (r._kind === 'proof' && (r.proofStatus === 'pending_proof' || r.proofStatus === 'rejected_at_review'));
+    var okBtnLabel = (r._kind === 'approve') ? t('pending.btn.approve') : (_awaitProof ? t('pending.btn.waiveApprove') : t('pending.btn.verify'));
+    var rejectBtnLabel = (r._kind === 'approve') ? t('pending.btn.reject') : (_awaitProof ? t('pending.btn.rejectLeave') : t('pending.btn.rejectProof'));
+    var _rejectDecision = _awaitProof ? 'reject_leave' : 'rejected_at_review';
     html += '<div class="card" style="padding:12px;">'
       +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
       +     '<strong style="font-size:14px;">' + escapeHtml(r.employeeId) + '</strong>'
@@ -1741,11 +1754,12 @@ function renderPending() {
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
       +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + ((r.ackSummary.pending && r.ackSummary.pending.length) ? '（' + t('ack.pendingLabel') + '：' + r.ackSummary.pending.map(escapeHtml).join('、') + '）' : '') + '</div>' : '')
       +     ((r._kind === 'proof') ? _liffProofLinksHtml(r.proofData) : '')
+      +     (_awaitProof ? '<div style="color:#e65100;">⏳ ' + t('pending.awaitProof') + (r.proofDeadline ? ('（' + r.proofDeadline + '）') : '') + '</div>' : '')
       +   '</div>'
       +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
       +     '<button onclick="showPendingDetail(\'' + r.requestId + '\',\'' + r._kind + '\')" class="btn-secondary" style="padding:8px;font-size:12px;border-radius:5px;">' + t('pending.btn.detail') + '</button>'
       +     '<button onclick="onPendingApprove(\'' + r.requestId + '\',\'' + r._kind + '\',this)" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#06C755;color:white;font-weight:600;">' + okBtnLabel + '</button>'
-      +     '<button onclick="openRejectModal(\'' + r._kind + '\',\'' + r.requestId + '\')" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#D85A30;color:white;font-weight:600;">' + rejectBtnLabel + '</button>'
+      +     '<button onclick="openRejectModal(\'' + r._kind + '\',\'' + r.requestId + '\',\'' + _rejectDecision + '\')" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#D85A30;color:white;font-weight:600;">' + rejectBtnLabel + '</button>'
       +   '</div>'
       // v1.0.152：第一段審核加「暫予准假待補件」第三鈕（allow_conditional 關掉的假別不顯示）
       +   ((r._kind === 'approve' && r.allowConditional !== false)
@@ -1841,8 +1855,8 @@ async function onPendingConditional(requestId, endDate, btn) {
   } catch (e) { alert(e.message || e); btn.disabled = false; }
 }
 
-function openRejectModal(kind, requestId) {
-  REJECT_CTX = { kind: kind, requestId: requestId };
+function openRejectModal(kind, requestId, proofDecision) {
+  REJECT_CTX = { kind: kind, requestId: requestId, proofDecision: proofDecision || 'rejected_at_review' };
   $('rejectModalNote').value = '';
   $('rejectModal').classList.remove('hidden');
 }
@@ -1863,7 +1877,7 @@ async function submitRejectModal(btn) {
     if (REJECT_CTX.kind === 'approve') {
       res = await rpc('webLiffApproveLeave', [SESSION.idToken, REJECT_CTX.requestId, 'rejected', note]);
     } else {
-      res = await rpc('webLiffProofReview', [SESSION.idToken, REJECT_CTX.requestId, 'rejected_at_review', note]);
+      res = await rpc('webLiffProofReview', [SESSION.idToken, REJECT_CTX.requestId, (REJECT_CTX.proofDecision || 'rejected_at_review'), note]);
     }
     btn.disabled = false;
     if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
