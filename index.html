@@ -1200,6 +1200,19 @@ function fmtLeaveDur(hours) {
   return (Math.round(h * 100) / 100) + ' ' + t('app.hoursUnit');
 }
 
+// 顯示請假期間:全天→日期(或日期區間);部分時數→同日「日期 起~迄」、跨日「日期 起 ~ 日期 迄」
+function fmtLeavePeriod(r) {
+  var sd = r.startDate || '', ed = r.endDate || '';
+  var st = r.startTime || '', et = r.endTime || '';
+  if (!st && !et) {
+    return (sd === ed) ? sd : (sd + ' ~ ' + ed);
+  }
+  if (sd === ed) {
+    return sd + ' ' + st + '~' + et;
+  }
+  return sd + ' ' + st + ' ~ ' + ed + ' ' + et;
+}
+
 function loadEmployeesForDelegate() {
   if (DELEGATE_LIST_LOADED) return;
   if (!SESSION || !SESSION.idToken) return;
@@ -1441,7 +1454,7 @@ function renderHistory(requests) {
     html += '<div><strong style="font-size:14px;">' + _locName({leaveId: r.leaveId}, 'leave') + '</strong><span style="font-size:11px;color:#888;margin-left:6px;">' + fmtLeaveDur(r.hoursTotal) + '</span></div>';
     html += '<div style="color:' + statusColor + ';font-weight:600;font-size:13px;">' + statusText + '</div>';
     html += '</div>';
-    html += '<div style="font-size:12px;color:#555;">' + r.startDate + (r.startTime ? ' ' + r.startTime : '') + ' ~ ' + r.endDate + (r.endTime ? ' ' + r.endTime : '') + '</div>';
+    html += '<div style="font-size:12px;color:#555;">' + fmtLeavePeriod(r) + '</div>';
     if (r.reason) html += '<div style="font-size:11px;color:#666;margin-top:4px;">' + t('apply.reason') + '：' + escapeHtml(r.reason) + '</div>';
     html += subBadge;
     // v1.0.182：本人可自助取消 — 待簽(pending)隨時可取消;已準(approved)只有尚未開始(start≥今天)可取消
@@ -1733,9 +1746,8 @@ function renderPending() {
       ? '<span style="background:#FFF7E6;color:#854F0B;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.approve') + '</span>'
       : '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.proof') + '</span>';
     var leaveName = _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave');
-    // 日期 range：起 = 終就一行，不同就 起 ~ 終
-    var dateLine = (r.startDate === r.endDate) ? r.startDate
-                  : r.startDate + ' ~ ' + r.endDate;
+    // 日期 range：全天顯示日期(區間);部分時數顯示時段
+    var dateLine = fmtLeavePeriod(r);
     var hours = Number(r.hoursTotal || 0);
     var days = Math.round((hours / 8) * 10) / 10;
     // v1.0.187：proof 卡分兩種 — submitted=待複審(通過/退回補件);pending_proof|rejected_at_review=待補件(免證明准假/退回整張假)
@@ -1805,7 +1817,7 @@ function showPendingDetail(requestId, kind) {
   var msg = '📌 ' + requestId + '\n\n'
     + t('pending.det.applicant') + ': ' + r.employeeId + '\n'
     + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave') + '\n'
-    + t('pending.det.range') + ': ' + r.startDate + ' ~ ' + r.endDate + '\n'
+    + t('pending.det.range') + ': ' + fmtLeavePeriod(r) + '\n'
     + t('pending.det.hours') + ': ' + fmtLeaveDur(r.hoursTotal) + '\n'
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
