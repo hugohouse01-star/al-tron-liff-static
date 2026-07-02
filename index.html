@@ -448,6 +448,7 @@ var I18N_DICTS = {
     'app.err.authFailed': '驗證失敗',
     'app.err.bindRefetch': '綁定成功但 re-fetch 失敗，請重新整理',
     'apply.successHours': '時數：',
+    'apply.usedDays': '使用 ', 'apply.balanceAfter': '特休餘額 ', 'unit.daysShort': ' 天',
     'cal.dayMsg.shiftLine': '{name}（{start}~{end}）',
     'gate.title': '考勤系統測試中',
     'gate.body': '目前未開放您使用考勤系統。如有疑問請聯絡管理員。',
@@ -563,6 +564,7 @@ var I18N_DICTS = {
     'app.err.authFailed': 'Verification failed',
     'app.err.bindRefetch': 'Bound but re-fetch failed, please refresh',
     'apply.successHours': 'Hours: ',
+    'apply.usedDays': 'Used ', 'apply.balanceAfter': 'Annual balance ', 'unit.daysShort': ' d',
     'cal.dayMsg.shiftLine': '{name} ({start}~{end})',
     'gate.title': 'HR System under testing',
     'gate.body': 'Access to the HR/Attendance system is not yet enabled for your account. Please contact the administrator.',
@@ -678,6 +680,7 @@ var I18N_DICTS = {
     'app.err.authFailed': 'ตรวจสอบล้มเหลว',
     'app.err.bindRefetch': 'ผูกบัญชีสำเร็จ แต่ดึงข้อมูลใหม่ล้มเหลว กรุณารีเฟรช',
     'apply.successHours': 'ชั่วโมง: ',
+    'apply.usedDays': 'ใช้ไป ', 'apply.balanceAfter': 'ยอดพักร้อนคงเหลือ ', 'unit.daysShort': ' วัน',
     'cal.dayMsg.shiftLine': '{name} ({start}~{end})',
     'gate.title': 'ระบบลงเวลายังอยู่ในช่วงทดสอบ',
     'gate.body': 'บัญชีของคุณยังไม่ได้รับสิทธิ์ใช้งานระบบลงเวลา หากมีข้อสงสัยกรุณาติดต่อผู้ดูแลระบบ',
@@ -1193,6 +1196,11 @@ function _liffLeaveWorkHours(st, et) {
   return Math.round(((e - s - ov) / 60) * 100) / 100;
 }
 
+// 天數顯示(可負=借支,自帶 -)。給特休餘額用。
+function fmtBalDays(n) {
+  var d = Math.round(Number(n || 0) * 100) / 100;
+  return d + t('unit.daysShort');
+}
 // 請假時長顯示：整除 8h → 「N 天」；否則 → 「X 小時」
 function fmtLeaveDur(hours) {
   var h = Number(hours || 0);
@@ -1318,6 +1326,8 @@ async function onSubmitLeave(btn) {
     }
     var d = res.data;
     var msg = t('apply.success') + d.requestId + '<br>' + t('apply.successHours') + fmtLeaveDur(d.hoursTotal);
+    // v1.0.249:特休(額度制)顯示使用後餘額(可負=借支)
+    if (d.remainingAfter != null) msg += '<br>' + t('apply.balanceAfter') + fmtBalDays(d.remainingAfter);
     resBox.innerHTML = '<div class="alert alert-success">' + msg + '</div>';
     try { resBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
 
@@ -1762,6 +1772,7 @@ function renderPending() {
       +   '</div>'
       +   '<div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:10px;">'
       +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(hours) + '</div>'
+      +     (r.annualRemainingAfter != null ? '<div>💰 ' + t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '</div>' : '')
       +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
       +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + ((r.ackSummary.pending && r.ackSummary.pending.length) ? '（' + t('ack.pendingLabel') + '：' + r.ackSummary.pending.map(escapeHtml).join('、') + '）' : '') + '</div>' : '')
@@ -1819,6 +1830,7 @@ function showPendingDetail(requestId, kind) {
     + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave') + '\n'
     + t('pending.det.range') + ': ' + fmtLeavePeriod(r) + '\n'
     + t('pending.det.hours') + ': ' + fmtLeaveDur(r.hoursTotal) + '\n'
+    + (r.annualRemainingAfter != null ? (t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '\n') : '')
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
     if (r.proofData.fileUrl) msg += t('pending.det.proofFile') + ': ' + r.proofData.fileUrl + '\n';
