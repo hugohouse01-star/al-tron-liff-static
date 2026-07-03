@@ -978,6 +978,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     // 請假表單：有請假權限才載
     if (nv.showLeave) {
       ANNUAL_SPECIAL = !!res.data.annualSpecial;
+      ANNUAL_WAIVE_ACTIVE = !!res.data.annualWaiveActive;
       if (res.data.leaveTypes) {
         APPLY_LEAVE_TYPES = res.data.leaveTypes;
         renderApplyForm();
@@ -1059,6 +1060,7 @@ async function onBind(btn) {
     }
     if (nv2.showLeave && ex.data.leaveTypes) {
       ANNUAL_SPECIAL = !!ex.data.annualSpecial;
+      ANNUAL_WAIVE_ACTIVE = !!ex.data.annualWaiveActive;
       APPLY_LEAVE_TYPES = ex.data.leaveTypes; renderApplyForm();
     }
     if (nv2.showApprove || nv2.fallback) {
@@ -1092,6 +1094,7 @@ function switchTab(name) {
 var APPLY_LEAVE_TYPES = null;
 var APPLY_LEAVE_TYPES_LOADING = false;
 var ANNUAL_SPECIAL = false;  // v1.0.158：外籍特休特殊規則(0.5h 最小單位 + 可借支)
+var ANNUAL_WAIVE_ACTIVE = false;  // v1.0.264：後台「特休申請門檻臨時放寬」開啟中 → 前端也跳過提前天數/最少時數檢查
 var DELEGATE_LIST_LOADED = false;
 var APP_SELECTED_FILE = null;          // 共用：拍照/選檔都寫進這個
 var PROOF_MODAL_SELECTED_FILE = null;  // 補證明 modal 用
@@ -1282,7 +1285,8 @@ async function onSubmitLeave(btn) {
     }
   }
   // 特休（annual）申請規則：最少 4 小時 + 提前申請（單日 3 天 / 連續 2 天以上 5 天）。後端會再卡一次。
-  if (leaveId === 'annual') {
+  //   v1.0.264：後台臨時放寬開啟中 → 前端跳過此檢查(與後端閘門一致)。
+  if (leaveId === 'annual' && !ANNUAL_WAIVE_ACTIVE) {
     var annHours = fullDay ? 8 : (startDate === endDate ? _liffLeaveWorkHours(startTime, endTime) : 8);
     var annMin = ANNUAL_SPECIAL ? 0.5 : 4;  // v1.0.158：外籍 0.5h
     if (annHours < annMin) { _applyErr(t('apply.annualMinHours').replace('4', annMin)); return; }
