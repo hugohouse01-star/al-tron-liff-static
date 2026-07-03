@@ -1284,22 +1284,8 @@ async function onSubmitLeave(btn) {
       }
     }
   }
-  // 特休（annual）申請規則：最少 4 小時 + 提前申請（單日 3 天 / 連續 2 天以上 5 天）。後端會再卡一次。
-  //   v1.0.264：後台臨時放寬開啟中 → 前端跳過此檢查(與後端閘門一致)。
-  if (leaveId === 'annual' && !ANNUAL_WAIVE_ACTIVE) {
-    var annHours = fullDay ? 8 : (startDate === endDate ? _liffLeaveWorkHours(startTime, endTime) : 8);
-    var annMin = ANNUAL_SPECIAL ? 0.5 : 4;  // v1.0.158：外籍 0.5h
-    if (annHours < annMin) { _applyErr(t('apply.annualMinHours').replace('4', annMin)); return; }
-    var annToday = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
-    var annStart = new Date(startDate + 'T00:00:00');
-    var annGap = Math.round((annStart.getTime() - annToday.getTime()) / 86400000);
-    var annMulti = (startDate !== endDate);
-    var annNeed = annMulti ? 5 : 3;
-    if (annGap < annNeed) {
-      _applyErr(t(annMulti ? 'apply.annualLeadMulti' : 'apply.annualLeadSingle').replace('{gap}', annGap));
-      return;
-    }
-  }
+  // v1.0.265：特休「最少時數 + 提前天數」的前端硬擋已移除,改由後端即時判定(後端會擋、也會即時尊重臨時放寬)。
+  //   原因:前端旗標只在開啟 LIFF 當下抓一次,若先開頁面後開放寬(或 webview 快取)會誤擋。跟網頁表單一致=直接送後端。
   var eventDate = $('appEventDate') ? $('appEventDate').value : '';
   var pregnancyStage = $('appPregnancyStage') ? $('appPregnancyStage').value : '';
   var relation = $('appRelation') ? $('appRelation').value : '';
