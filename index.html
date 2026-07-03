@@ -462,6 +462,10 @@ var I18N_DICTS = {
     'chip.holiday': '今日為假日',
     'chip.unscheduled': '今日非排班日',
     'chip.loadFail': '今日狀態載入失敗',
+    'chip.off': '今日休息',
+    'chip.working': '上班中',
+    'chip.pending': '尚未到上班時間',
+    'chip.nextShift': '下次上班',
     // v1.0.14 Phase B-3: 待簽 tab
     'pending.tab': '待簽',
     'pending.title': '待我簽核',
@@ -578,6 +582,10 @@ var I18N_DICTS = {
     'chip.holiday': 'Today is a holiday',
     'chip.unscheduled': 'No shift scheduled today',
     'chip.loadFail': 'Failed to load today\'s status',
+    'chip.off': 'Day off today',
+    'chip.working': 'On shift',
+    'chip.pending': 'Shift not started yet',
+    'chip.nextShift': 'Next shift',
     // v1.0.14 Phase B-3: Pending approvals tab
     'pending.tab': 'Inbox',
     'pending.title': 'Pending my approval',
@@ -694,6 +702,10 @@ var I18N_DICTS = {
     'chip.holiday': 'วันนี้เป็นวันหยุด',
     'chip.unscheduled': 'ไม่มีกะวันนี้',
     'chip.loadFail': 'โหลดสถานะวันนี้ล้มเหลว',
+    'chip.off': 'วันนี้หยุด',
+    'chip.working': 'กำลังทำงาน',
+    'chip.pending': 'ยังไม่ถึงเวลาเข้างาน',
+    'chip.nextShift': 'เข้างานครั้งถัดไป',
     // v1.0.14 Phase B-3: รออนุมัติ tab
     'pending.tab': 'รออนุมัติ',
     'pending.title': 'รอฉันอนุมัติ',
@@ -1650,8 +1662,11 @@ async function loadTodayChip(prefiredPromise) {
     var state;
     if (today.status === 'leave')        state = { kind: 'leave' };
     else if (today.status === 'holiday') state = { kind: 'holiday' };
+    else if (today.status === 'off')     state = { kind: 'off' };               // v1.0.262:今日休息(非排班日)
+    else if (today.status === 'pending') state = { kind: 'pending' };            // v1.0.262:未到上班時間
+    else if (today.status === 'working') state = { kind: 'clockedInOnly' };      // 上班中(已打上班)
+    else if (today.status === 'working_noin') state = { kind: 'notClockedYet' }; // 上班中但未打上班卡
     else if (today.status === 'unscheduled') {
-      // 無排班 fallback：有打卡 → ✅；沒打卡 → 真的非排班日
       if (hasIn && hasOut)      state = { kind: 'clockedIn' };
       else if (hasIn && !hasOut) state = { kind: 'clockedInOnly' };
       else                       state = { kind: 'unscheduled' };
@@ -1660,6 +1675,7 @@ async function loadTodayChip(prefiredPromise) {
     else if (hasIn && hasOut)            state = { kind: 'clockedIn' };          // normal / late
     else if (hasIn && !hasOut)           state = { kind: 'clockedInOnly' };       // absent / 上班中
     else                                  state = { kind: 'notClockedYet' };
+    state.nextShift = today.nextShift || null;   // v1.0.262:下次上班
     renderTodayChip(state);
   } catch (e) {
     dbg('chip load fail: ' + (e && e.message || e));
@@ -1681,6 +1697,8 @@ function renderTodayChip(state) {
     case 'onLeave':
     case 'leave':          icon = '🏖'; cssCls = 'chip-leave';   msgKey = 'chip.onLeave'; break;
     case 'holiday':        icon = '🌟'; cssCls = 'chip-holiday'; msgKey = 'chip.holiday'; break;
+    case 'off':            icon = '🛌'; cssCls = 'chip-muted';   msgKey = 'chip.off'; break;
+    case 'pending':        icon = '⏳'; cssCls = 'chip-muted';   msgKey = 'chip.pending'; break;
     case 'unscheduled':    icon = '—'; cssCls = 'chip-muted';   msgKey = 'chip.unscheduled'; break;
     case 'fail':           icon = '⚠'; cssCls = 'chip-muted';   msgKey = 'chip.loadFail'; break;
     default:               icon = '⏳'; cssCls = 'chip-loading'; msgKey = 'chip.loading';
@@ -1689,6 +1707,14 @@ function renderTodayChip(state) {
   var html = '<span class="chip-icon">' + icon + '</span>'
            + '<span class="chip-msg">' + escapeHtml(t(msgKey)) + '</span>';
   if (subKey) html += '<span class="chip-sub">' + escapeHtml(t(subKey)) + '</span>';
+  // v1.0.262：下次上班（正常排班 + 假日加班 − 請假）
+  var ns = state.nextShift;
+  if (ns && ns.date && ns.startTime) {
+    var md = ns.date.slice(5).replace('-', '/');   // MM/DD
+    var wk = ns.weekday ? ('（' + ns.weekday + '）') : '';
+    var otTag = ns.isOt ? ' 🔧' : '';
+    html += '<span class="chip-sub">' + escapeHtml(t('chip.nextShift') + ' ' + md + wk + ' ' + ns.startTime + otTag) + '</span>';
+  }
   el.innerHTML = html;
 }
 
