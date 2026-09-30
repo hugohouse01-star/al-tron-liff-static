@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net https://*.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.line-scdn.net; connect-src https://script.google.com https://script.googleusercontent.com https://*.line.me https://*.line-scdn.net https://*.line-apps.com; font-src 'self'; frame-src https://*.line.me https://*.line-scdn.net; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>鋁創 · 模具派工</title>
+<!--
+  鋁創模具派工系統 LINE 頁（外殼）—— 很少改。畫面本體是 mold-app-<版號>.js，版號由模具伺服器（ping）告訴外殼。
+  規矩（規格 T5）：外面來的字一律 textContent；不寫內嵌 script；不在瀏覽器存任何身分資料；網址的 op 只拿來標亮。
+  CSP：程式只從本站和 LINE 的網域載；連線只到模具伺服器（script.google.com）和 LINE；LINE 元件要開的框也只限 LINE 的網域。
+-->
+<style>
+  html, body { margin: 0; background: #f7f8fa; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Noto Sans Thai", "Microsoft JhengHei", sans-serif; }
+  #boot { padding: 48px 16px; text-align: center; color: #6b7280; font-size: 15px; }
+</style>
+</head>
+<body>
+<div id="boot">載入中… Loading… กำลังโหลด…</div>
+<div id="app"></div>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="mold-shell.js"></script>
+</body>
+</html>
