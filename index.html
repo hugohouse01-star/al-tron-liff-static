@@ -362,7 +362,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.26';  // 外籍特休特殊規則:特休最小單位 0.5h(其他人維持 4h)+ 累積餘額可為負
+var APP_VERSION = 'static-1.0.30';  // v1.0.516 配套:已核准的假改「申請取消」(主管核准才生效);已開始的假不能自行取消;待簽卡多「取消申請」
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -422,6 +422,12 @@ var I18N_DICTS = {
     'history.cancelConfirm': '確定要取消這筆請假嗎？取消後若已扣假會自動退還。',
     'history.cancelOk': '已取消請假',
     'history.cancelFail': '取消失敗：',
+    'history.reqCancel': '🗑 申請取消', 'history.withdraw': '↩ 收回申請', 'history.badge.cancelReq': '🗑 申請取消中', 'history.badge.cancelRejected': '取消申請被駁回',
+    'history.reqCancelConfirm': '這張假已核准，取消要由簽核主管核准才生效。要送出取消申請嗎？', 'history.reqCancelReason': '取消原因（選填）：', 'history.reqCancelOk': '已送出取消申請，等主管處理',
+    'history.withdrawConfirm': '要收回取消申請嗎？假單會維持已核准。', 'history.withdrawOk': '已收回取消申請',
+    'history.startedNoCancel': '已開始的假無法自行取消，請聯繫主管或人事處理',
+    'pending.badge.cancelReq': '🗑 取消申請', 'pending.btn.cancelApprove': '核准取消', 'pending.btn.cancelReject': '駁回', 'pending.cancelReason': '取消原因',
+    'pending.cancelStarted': '⚠ 假已開始，不能核准取消；請改由人事更正或作廢', 'pending.confirm.cancelApprove': '核准取消後假單變成已取消、額度退回。確定？', 'pending.cancelNote': '備註（選填）：',
     'cal.tab': '月曆', 'cal.summary': '本月統計',
     'cal.workDays': '出勤', 'cal.leaveDays': '請假', 'cal.holidayDays': '假日',
     'cal.totalHours': '總工時', 'cal.lateDays': '遲到', 'cal.absentDays': '缺勤',
@@ -542,6 +548,12 @@ var I18N_DICTS = {
     'history.cancelConfirm': 'Cancel this leave request? Any deducted quota will be refunded.',
     'history.cancelOk': 'Leave cancelled',
     'history.cancelFail': 'Cancel failed: ',
+    'history.reqCancel': '🗑 Request cancel', 'history.withdraw': '↩ Withdraw', 'history.badge.cancelReq': '🗑 Cancel requested', 'history.badge.cancelRejected': 'Cancel request rejected',
+    'history.reqCancelConfirm': 'This leave is approved; cancelling needs your approver\'s approval. Send a cancel request?', 'history.reqCancelReason': 'Reason (optional):', 'history.reqCancelOk': 'Cancel request sent, waiting for your approver',
+    'history.withdrawConfirm': 'Withdraw the cancel request? The leave stays approved.', 'history.withdrawOk': 'Cancel request withdrawn',
+    'history.startedNoCancel': 'A leave that has already started cannot be cancelled by yourself. Please contact your manager or HR.',
+    'pending.badge.cancelReq': '🗑 Cancel request', 'pending.btn.cancelApprove': 'Approve cancel', 'pending.btn.cancelReject': 'Reject', 'pending.cancelReason': 'Cancel reason',
+    'pending.cancelStarted': '⚠ Leave already started; cannot approve cancellation. Ask HR to correct or void it.', 'pending.confirm.cancelApprove': 'The leave will be cancelled and the quota refunded. Confirm?', 'pending.cancelNote': 'Note (optional):',
     'cal.tab': 'Calendar', 'cal.summary': 'Monthly stats',
     'cal.workDays': 'Work', 'cal.leaveDays': 'Leave', 'cal.holidayDays': 'Holiday',
     'cal.totalHours': 'Total hrs', 'cal.lateDays': 'Late', 'cal.absentDays': 'Absent',
@@ -662,6 +674,12 @@ var I18N_DICTS = {
     'history.cancelConfirm': 'ยืนยันยกเลิกการลานี้หรือไม่? หากหักวันลาแล้วจะคืนให้อัตโนมัติ',
     'history.cancelOk': 'ยกเลิกการลาแล้ว',
     'history.cancelFail': 'ยกเลิกไม่สำเร็จ: ',
+    'history.reqCancel': '🗑 ขอยกเลิก', 'history.withdraw': '↩ ถอนคำขอ', 'history.badge.cancelReq': '🗑 รอยกเลิก', 'history.badge.cancelRejected': 'คำขอยกเลิกถูกปฏิเสธ',
+    'history.reqCancelConfirm': 'การลานี้อนุมัติแล้ว การยกเลิกต้องให้หัวหน้าอนุมัติ ส่งคำขอยกเลิกหรือไม่?', 'history.reqCancelReason': 'เหตุผล (ไม่บังคับ):', 'history.reqCancelOk': 'ส่งคำขอยกเลิกแล้ว รอหัวหน้าดำเนินการ',
+    'history.withdrawConfirm': 'ถอนคำขอยกเลิกหรือไม่? การลายังคงได้รับอนุมัติ', 'history.withdrawOk': 'ถอนคำขอยกเลิกแล้ว',
+    'history.startedNoCancel': 'การลาที่เริ่มแล้วไม่สามารถยกเลิกเองได้ กรุณาติดต่อหัวหน้าหรือฝ่ายบุคคล',
+    'pending.badge.cancelReq': '🗑 คำขอยกเลิก', 'pending.btn.cancelApprove': 'อนุมัติยกเลิก', 'pending.btn.cancelReject': 'ปฏิเสธ', 'pending.cancelReason': 'เหตุผลยกเลิก',
+    'pending.cancelStarted': '⚠ การลาเริ่มแล้ว อนุมัติยกเลิกไม่ได้ กรุณาให้ฝ่ายบุคคลแก้ไขหรือยกเลิก', 'pending.confirm.cancelApprove': 'การลาจะถูกยกเลิกและคืนโควต้า ยืนยัน?', 'pending.cancelNote': 'หมายเหตุ (ไม่บังคับ):',
     'cal.tab': 'ปฏิทิน', 'cal.summary': 'สถิติเดือน',
     'cal.workDays': 'ทำงาน', 'cal.leaveDays': 'ลา', 'cal.holidayDays': 'หยุด',
     'cal.totalHours': 'ชม.รวม', 'cal.lateDays': 'สาย', 'cal.absentDays': 'ขาด',
@@ -867,6 +885,9 @@ var ACTION_MAP = {
   'webLiffListEmployeesForDelegate': { action: 'listEmployees',     params: ['idToken'] },
   'webLiffMyLeaveHistory':           { action: 'myLeaveHistory',    params: ['idToken', 'year'] },
   'webLiffCancelLeave':              { action: 'cancelLeave',       params: ['idToken', 'requestId', 'reason'] },
+  'webLiffRequestCancelLeave':       { action: 'requestCancelLeave',    params: ['idToken', 'requestId', 'reason'] },   // v1.0.516
+  'webLiffWithdrawCancelRequest':    { action: 'withdrawCancelRequest', params: ['idToken', 'requestId'] },             // v1.0.516
+  'webLiffDecideCancelRequest':      { action: 'decideCancelRequest',   params: ['idToken', 'requestId', 'decision', 'note'] },   // v1.0.516
   'webLiffMonthlyAttendance':        { action: 'monthlyAttendance', params: ['idToken', 'yearMonth'] },
   'webLiffTodayStatus':              { action: 'todayStatus',       params: ['idToken'] },
   'webLiffApprovalBundle':           { action: 'approvalBundle',    params: ['idToken'] },
@@ -1095,7 +1116,7 @@ var APPLY_LEAVE_TYPES = null;
 var APPLY_LEAVE_TYPES_LOADING = false;
 var ANNUAL_SPECIAL = false;  // v1.0.158：外籍特休特殊規則(0.5h 最小單位 + 可借支)
 var ANNUAL_WAIVE_ACTIVE = false;  // v1.0.264：後台「特休申請門檻臨時放寬」開啟中 → 前端也跳過提前天數/最少時數檢查
-var _LIFF_BUILD = 'static-1.0.28';  // build marker(強制 GitHub Pages 重新 build)
+var _LIFF_BUILD = 'static-1.0.30';  // build marker(強制 GitHub Pages 重新 build)
 var DELEGATE_LIST_LOADED = false;
 var APP_SELECTED_FILE = null;          // 共用：拍照/選檔都寫進這個
 var PROOF_MODAL_SELECTED_FILE = null;  // 補證明 modal 用
@@ -1470,25 +1491,54 @@ function renderHistory(requests) {
     html += '<div style="font-size:12px;color:#555;">' + fmtLeavePeriod(r) + '</div>';
     if (r.reason) html += '<div style="font-size:11px;color:#666;margin-top:4px;">' + t('apply.reason') + '：' + escapeHtml(r.reason) + '</div>';
     html += subBadge;
-    // v1.0.182：本人可自助取消 — 待簽(pending)隨時可取消;已準(approved)只有尚未開始(start≥今天)可取消
-    var _todayStr = new Date().toISOString().slice(0, 10);
-    var _awaitProof2 = (r.proofStatus === 'pending_proof' || r.proofStatus === 'rejected_at_review');
-    var _canCancel = (r.status === 'pending') || (r.status === 'approved' && (String(r.startDate) >= _todayStr || _awaitProof2));
-    if (_canCancel) {
-      html += '<button onclick="cancelMyLeave(\'' + r.requestId + '\')" style="margin-top:8px;padding:6px 10px;font-size:12px;border:1px solid #c82333;background:white;color:#c82333;border-radius:5px;cursor:pointer;">' + t('history.cancel') + '</button>';
+    // v1.0.516（規則總表第 1 表）：待簽 → 直接取消；已核准還沒開始 → 申請取消（主管核准才生效）／收回；已開始 → 沒按鈕（補件中不再例外）。
+    //   今天用本機日期，不用 toISOString（那是 UTC，台灣早上 8 點前會差一天）。
+    var _todayStr = _todayYmdLocal();
+    var _cBtn = 'margin-top:8px;padding:6px 10px;font-size:12px;border:1px solid #c82333;background:white;color:#c82333;border-radius:5px;cursor:pointer;';
+    if (r.status === 'pending') {
+      html += '<button onclick="cancelMyLeave(\'' + r.requestId + '\')" style="' + _cBtn + '">' + t('history.cancel') + '</button>';
+    } else if (r.status === 'approved' && r.cancelStatus === 'requested') {
+      subBadge += '<div style="font-size:11px;color:#e65100;margin-top:4px;">' + t('history.badge.cancelReq') + '</div>';
+      html += '<button onclick="withdrawMyCancelRequest(\'' + r.requestId + '\')" style="' + _cBtn.replace(/#c82333/g, '#e65100') + '">' + t('history.withdraw') + '</button>';
+    } else if (r.status === 'approved' && String(r.startDate) >= _todayStr) {
+      if (r.cancelStatus === 'rejected') subBadge += '<div style="font-size:11px;color:#888;margin-top:4px;">' + t('history.badge.cancelRejected') + '</div>';
+      html += '<button onclick="requestMyCancel(\'' + r.requestId + '\')" style="' + _cBtn + '">' + t('history.reqCancel') + '</button>';
     }
     html += '</div>';
   });
   box.innerHTML = html;
 }
 
+function _todayYmdLocal() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+// v1.0.516：已核准、還沒開始 → 申請取消；主管決定前可收回
+async function requestMyCancel(requestId) {
+  if (!requestId) return;
+  if (!confirm(t('history.reqCancelConfirm'))) return;
+  var reason = prompt(t('history.reqCancelReason'), '') || '';
+  try {
+    var res = await rpc('webLiffRequestCancelLeave', [SESSION.idToken, requestId, reason]);
+    if (!res || !res.success) { alert((res && res.errorCode === 'LEAVE_STARTED') ? t('history.startedNoCancel') : (t('history.cancelFail') + ((res && res.message) || ''))); return; }
+    alert(t('history.reqCancelOk'));
+    loadHistoryTab(Number($('histYear').value));
+  } catch (e) { alert(t('history.cancelFail') + (e.message || e)); }
+}
+async function withdrawMyCancelRequest(requestId) {
+  if (!requestId) return;
+  if (!confirm(t('history.withdrawConfirm'))) return;
+  try {
+    var res = await rpc('webLiffWithdrawCancelRequest', [SESSION.idToken, requestId]);
+    if (!res || !res.success) { alert(t('history.cancelFail') + ((res && res.message) || '')); return; }
+    alert(t('history.withdrawOk'));
+    loadHistoryTab(Number($('histYear').value));
+  } catch (e) { alert(t('history.cancelFail') + (e.message || e)); }
+}
 // v1.0.182：員工自助取消請假
 async function cancelMyLeave(requestId) {
   if (!requestId) return;
   if (!confirm(t('history.cancelConfirm'))) return;
   try {
     var res = await rpc('webLiffCancelLeave', [SESSION.idToken, requestId, '']);
-    if (!res || !res.success) { alert(t('history.cancelFail') + ((res && res.message) || '')); return; }
+    if (!res || !res.success) { alert((res && res.errorCode === 'LEAVE_STARTED') ? t('history.startedNoCancel') : (t('history.cancelFail') + ((res && res.message) || ''))); return; }   // v1.0.516
     alert(t('history.cancelOk'));
     loadHistoryTab(Number($('histYear').value));   // 重新載入歷程
   } catch (e) {
@@ -1769,6 +1819,7 @@ function renderPending() {
   var all = firsts.map(function(r){ return Object.assign({}, r, { _kind: 'approve' }); })
     .concat(seconds.map(function(r){ return Object.assign({}, r, { _kind: 'proof' }); }));
   all.forEach(function(r) {
+    if (r._kind === 'approve' && r.kind === 'cancel_request') { html += _renderCancelReqCard(r); return; }   // v1.0.516
     var kindBadge = (r._kind === 'approve')
       ? '<span style="background:#FFF7E6;color:#854F0B;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.approve') + '</span>'
       : '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.proof') + '</span>';
@@ -1810,6 +1861,38 @@ function renderPending() {
   box.innerHTML = html;
 }
 
+// v1.0.516：待簽清單裡的「取消申請」卡（規則總表第 2 表）：核准＝假單取消＋退額；駁回＝維持已核准；假已開始只剩駁回
+function _renderCancelReqCard(r) {
+  var leaveName = _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave');
+  var h = '<div class="card" style="padding:12px;background:#fff8e1;border:1px solid #ffb74d;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    +   '<strong style="font-size:14px;">' + escapeHtml(r.employeeId) + '</strong>'
+    +   '<span style="background:#e65100;color:white;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.cancelReq') + '</span>'
+    + '</div>'
+    + '<div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:10px;">'
+    +   '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(Number(r.hoursTotal || 0)) + '</div>'
+    +   '<div>📅 ' + escapeHtml(fmtLeavePeriod(r)) + '</div>'
+    +   (r.cancelReason ? '<div>💬 ' + t('pending.cancelReason') + '：' + escapeHtml(r.cancelReason) + '</div>' : '')
+    +   (r.startedAlready ? '<div style="color:#c62828;">' + t('pending.cancelStarted') + '</div>' : '')
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+    +   (r.startedAlready ? '<span></span>' : '<button onclick="onDecideCancelReq(\'' + r.requestId + '\',\'approve\',this)" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#06C755;color:white;font-weight:600;">' + t('pending.btn.cancelApprove') + '</button>')
+    +   '<button onclick="onDecideCancelReq(\'' + r.requestId + '\',\'reject\',this)" style="padding:8px;font-size:12px;border:none;border-radius:5px;background:#D85A30;color:white;font-weight:600;">' + t('pending.btn.cancelReject') + '</button>'
+    + '</div></div>';
+  return h;
+}
+async function onDecideCancelReq(requestId, decision, btn) {
+  if (!SESSION || !SESSION.idToken) return;
+  if (decision === 'approve' && !confirm(t('pending.confirm.cancelApprove'))) return;
+  var note = prompt(t('pending.cancelNote'), '');
+  if (note === null) return;
+  btn.disabled = true;
+  try {
+    var res = await rpc('webLiffDecideCancelRequest', [SESSION.idToken, requestId, decision, note || '']);
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); btn.disabled = false; return; }
+    loadPendingTab(true);
+  } catch (e) { alert(e.message || e); btn.disabled = false; }
+}
 // v1.0.186：複審頁的證明改成可點擊超連結(開啟/下載),不再只是純文字 URL
 // v1.0.191：用 lh3.googleusercontent.com/d/ID — Google 內容 CDN,公開檔免帳號選擇(drive.google.com 任何網址都會問帳號)
 function _driveDirectUrl(fileId, fallback) {
