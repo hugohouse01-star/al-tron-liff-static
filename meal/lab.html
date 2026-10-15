@@ -7,7 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <title>鋁創 · 點餐實驗頁</title>
 <!--
-  點餐系統 M0 實機實驗頁（規格第 7 節 E1、E5、E7、E8）。不連任何資料、不寫任何東西，只把 LINE 給的資訊顯示出來。
+  點餐系統實機實驗頁（M0：規格第 7 節 E1、E5、E7、E8；M1 起多「問伺服器我是誰」）。不寫任何資料；「問伺服器我是誰」會把 LINE 的 idToken 交給點餐伺服器認人。
   規矩：外面來的字一律 textContent；不寫內嵌 script；瀏覽器裡只存計時數字（不存身分資料）。
 -->
 <style>
@@ -26,7 +26,7 @@
 </style>
 </head>
 <body>
-<header>🍱 點餐實驗頁（M0）</header>
+<header>🍱 點餐實驗頁（M0／M1）</header>
 <main>
   <div class="card"><h2>狀態</h2><div id="status">載入中…</div></div>
   <div class="card"><h2>結果（E1／E5）</h2><pre id="facts">—</pre></div>
@@ -35,6 +35,7 @@
     <button id="btnSend" class="primary" disabled>E8 送一則測試訊息</button>
     <button id="btnPerm" disabled>E5 要求授權</button>
     <button id="btnPing" disabled>E7 叫一次點餐伺服器</button>
+    <button id="btnWho" disabled>問伺服器我是誰</button>
     <div id="actionOut" class="muted"></div>
   </div>
   <div class="card">

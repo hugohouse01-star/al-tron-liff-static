@@ -7,7 +7,7 @@
 (function () {
   'use strict';
   var LIFF_ID = '2012025322-dA17cYb4';   // LINE Developers「鋁創點餐」通道底下的「點餐實驗」入口；推送的 bat 會檢查格式
-  var GAS_URL = '';                       // 點餐伺服器（M1 上線後才填；空的＝不量伺服器那一段）
+  var GAS_URL = 'https://script.google.com/macros/s/AKfycbzw8iqSiZ9xdiCR3baICTBXZwFCT0L7lCvt56GRcg7XJ4mutieiQhUt7YnALnkSuTwp/exec';   // 點餐伺服器 M1 v0.1.0（2026-10-15 上線）；空的＝不量伺服器那一段；推送的 bat 會檢查
   var RUNS_KEY = 'meal_lab_runs_v1', FIRST_KEY = 'meal_lab_first', RUNS_MAX = 40;
   var TEST_TEXT = '🍱 點餐實驗：這是測試訊息，請忽略';
 
@@ -87,6 +87,7 @@
         $('btnSend').disabled = false;
         $('btnPerm').disabled = false;
         $('btnPing').disabled = !GAS_URL;
+        $('btnWho').disabled = !GAS_URL;
       });
     }).catch(function (e) {
       setStatus('liff.init 失敗：' + String(e && e.code || '') + ' ' + String(e && e.message || e).substring(0, 160), 'bad');
@@ -159,9 +160,27 @@
     out('叫伺服器中…');
     pingGas().then(function (ms) { out('伺服器：' + (result.ping || '—')); fact('E7 手動叫伺服器', result.ping || '—'); render(); });
   });
+  //  M1：把 LINE 的 idToken 交給點餐伺服器（只放 body、不放網址），看它認不認得這個人（規格 0.2 B：LINE 這一頭要認得人、不降級）
+  $('btnWho') && ($('btnWho').onclick = function () {
+    if (!GAS_URL) { out('還沒填伺服器網址'); return; }
+    var tok = null;
+    try { tok = liff.getIDToken(); } catch (eT) {}
+    if (!tok) { out('拿不到 idToken（請關掉這一頁再開一次）'); return; }
+    out('問伺服器中…');
+    var s = Date.now();
+    fetch(GAS_URL + '?api=liff', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'init', idToken: tok }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var ms = Date.now() - s, t;
+        if (j && j.success && j.me) t = '伺服器認得：' + String(j.me.name) + '（' + String(j.me.account) + '）、' + String(j.me.roleLabel) + '、語言 ' + String(j.me.lang) + '、伺服器版本 ' + String(j.version) + '（' + ms + ' ms）';
+        else t = '伺服器不認得：' + String((j && j.errorCode) || '?') + ' ' + String((j && j.message) || '').substring(0, 120) + '（' + ms + ' ms）';
+        out(t); fact('E7 問伺服器我是誰', t); render();
+      })
+      .catch(function (e) { var t = '問伺服器失敗：' + String(e && e.message || e).substring(0, 120); out(t); fact('E7 問伺服器我是誰', t); render(); });
+  });
 
   function copyAll() {
-    var text = '[點餐實驗 M0]\n' + facts.join('\n') + '\n--- E7 計時 ---\n' + (runsText() || '（還沒有）');
+    var text = '[點餐實驗]\n' + facts.join('\n') + '\n--- E7 計時 ---\n' + (runsText() || '（還沒有）');
     var done = function (ok) { out(ok ? '已複製' : '複製失敗：請改用整頁截圖'); };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(); }); return; }
