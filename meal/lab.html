@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net https://*.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.line-scdn.net; connect-src https://script.google.com https://script.googleusercontent.com https://*.line.me https://*.line-scdn.net https://*.line-apps.com; font-src 'self'; frame-src https://*.line.me https://*.line-scdn.net; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net https://*.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.line-scdn.net; connect-src https://script.google.com https://script.googleusercontent.com https://*.line.me https://*.line-scdn.net https://*.line-apps.com; font-src 'self'; frame-src https://*.line.me https://*.line-scdn.net; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<title>鋁創 · 點餐實驗頁</title>
+<title>鋁創 · 點餐實驗頁（meal-liff-2）</title>
 <!--
   點餐系統實機實驗頁（M0：規格第 7 節 E1、E5、E7、E8；M1 起多「問伺服器我是誰」）。不寫任何資料；「問伺服器我是誰」會把 LINE 的 idToken 交給點餐伺服器認人。
   規矩：外面來的字一律 textContent；不寫內嵌 script；瀏覽器裡只存計時數字（不存身分資料）。
@@ -26,7 +26,7 @@
 </style>
 </head>
 <body>
-<header>🍱 點餐實驗頁（M0／M1）</header>
+<header>🍱 點餐實驗頁（M0／M1／M2 E6）</header>
 <main>
   <div class="card"><h2>狀態</h2><div id="status">載入中…</div></div>
   <div class="card"><h2>結果（E1／E5）</h2><pre id="facts">—</pre></div>
@@ -43,6 +43,15 @@
     <div class="muted">冷＝把 LINE 整個關掉、等 10 分鐘以上再開；熱＝關掉這一頁、馬上再開。「距上次」超過 10 分鐘的那列當冷。</div>
     <table><thead><tr><th>#</th><th>時間</th><th>距上次</th><th>初始化</th><th>整頁</th><th>伺服器</th></tr></thead><tbody id="runs"></tbody></table>
     <button id="btnClear">清除計時紀錄</button>
+  </div>
+  <div class="card">
+    <h2>E6 下單單存成圖片（M2）</h2>
+    <div class="muted">用瀏覽器內建 canvas 畫一張假的下單單（不連資料），試三種存法；每種記成功／失敗、大小、耗時。電腦 Chrome／GAS 後台頁那一份在點餐後台「今天」頁。</div>
+    <button id="btnE6A">A 下載</button>
+    <button id="btnE6B">B 分享</button>
+    <button id="btnE6C">C 顯示圖</button>
+    <div id="e6Out" class="muted">還沒試</div>
+    <div id="e6Img"></div>
   </div>
   <div class="card">
     <button id="btnCopy">複製全部結果</button>

@@ -179,8 +179,52 @@
       .catch(function (e) { var t = '問伺服器失敗：' + String(e && e.message || e).substring(0, 120); out(t); fact('E7 問伺服器我是誰', t); render(); });
   });
 
+  /* ---------- E6：下單單存成圖片（規格第 7 節；M2 實驗；只用內建 canvas） ---------- */
+  var E6 = { A: '', B: '', C: '' };
+  function e6Sheet() {
+    var lines = ['池上便當　下單單（實驗）', '日期 2026-10-16（五）　預計送達 12:00', '聯絡 鋁創　02-0000-0000', '', '排骨飯 ×3　小辣 ×2、不辣 ×1', '雞腿飯 ×2　加滷蛋 ×1', '燙青菜 ×1', '', '合計 6 份　$590'];
+    var W = 640, LH = 44, H = LH * (lines.length + 1), c = document.createElement('canvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr;
+    var g = c.getContext('2d'); g.scale(dpr, dpr); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#111'; g.textBaseline = 'top';
+    lines.forEach(function (t, i) { g.font = (i === 0 ? 'bold 26px ' : '22px ') + 'sans-serif'; g.fillText(t, 24, 20 + i * LH); });
+    return c;
+  }
+  function e6Blob(c) {
+    return new Promise(function (ok, ko) {
+      try {
+        if (c.toBlob) { c.toBlob(function (b) { b ? ok(b) : ko(new Error('toBlob 回 null')); }, 'image/png'); return; }
+        var d = c.toDataURL('image/png'), bin = atob(d.split(',')[1]), a = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+        ok(new Blob([a], { type: 'image/png' }));
+      } catch (e) { ko(e); }
+    });
+  }
+  function e6Run(how) {
+    var t0 = Date.now(), outEl = $('e6Out'), c;
+    var done = function (ok, msg, size) { var t = how + '：' + (ok ? '成功' : '失敗') + '　' + msg + (size ? '　' + Math.round(size / 1024) + ' KB' : '') + '　' + (Date.now() - t0) + ' ms'; E6[how.charAt(0)] = t; outEl.textContent = t; fact('E6 ' + how, t.substring(how.length + 1)); render(); };
+    try { c = e6Sheet(); } catch (e) { done(false, '畫圖失敗 ' + String(e && e.message || e).substring(0, 100)); return; }
+    e6Blob(c).then(function (blob) {
+      if (how === 'A 下載') {
+        var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'meal_order_sheet_test.png'; a.target = '_self';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+        done(true, '已呼叫下載（成功與否看檔案有沒有出現、頁面有沒有被換掉）', blob.size);
+      } else if (how === 'B 分享') {
+        var file = new File([blob], 'meal_order_sheet_test.png', { type: 'image/png' });
+        if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [file] })) { done(false, '這個瀏覽器不支援分享檔案（share=' + String(!!navigator.share) + ' canShare=' + String(!!navigator.canShare) + '）'); return; }
+        navigator.share({ files: [file], title: '下單單測試' }).then(function () { done(true, '分享完成', blob.size); }).catch(function (e) { done(false, '分享取消或失敗：' + String(e && e.name || '') + ' ' + String(e && e.message || e).substring(0, 100), blob.size); });
+      } else {
+        var box = $('e6Img'); while (box.firstChild) { try { URL.revokeObjectURL(box.firstChild.src); } catch (eR) {} box.removeChild(box.firstChild); }
+        var im = document.createElement('img'); im.src = URL.createObjectURL(blob); im.alt = '下單單'; im.style.maxWidth = '100%'; im.style.border = '1px solid #ccc'; box.appendChild(im);
+        done(true, '圖已顯示在下面（手機長按儲存）', blob.size);
+      }
+    }).catch(function (e) { done(false, String(e && e.message || e).substring(0, 120)); });
+  }
+  $('btnE6A').onclick = function () { e6Run('A 下載'); };
+  $('btnE6B').onclick = function () { e6Run('B 分享'); };
+  $('btnE6C').onclick = function () { e6Run('C 顯示圖'); };
+
   function copyAll() {
-    var text = '[點餐實驗]\n' + facts.join('\n') + '\n--- E7 計時 ---\n' + (runsText() || '（還沒有）');
+    var text = '[點餐實驗 meal-liff-2]\n' + facts.join('\n') + '\n--- E7 計時 ---\n' + (runsText() || '（還沒有）');
     var done = function (ok) { out(ok ? '已複製' : '複製失敗：請改用整頁截圖'); };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(); }); return; }
