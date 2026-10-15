@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net https://*.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.line-scdn.net; connect-src https://script.google.com https://script.googleusercontent.com https://*.line.me https://*.line-scdn.net https://*.line-apps.com; font-src 'self'; frame-src https://*.line.me https://*.line-scdn.net; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>鋁創 · 點餐實驗頁</title>
+<!--
+  點餐系統 M0 實機實驗頁（規格第 7 節 E1、E5、E7、E8）。不連任何資料、不寫任何東西，只把 LINE 給的資訊顯示出來。
+  規矩：外面來的字一律 textContent；不寫內嵌 script；瀏覽器裡只存計時數字（不存身分資料）。
+-->
+<style>
+  html, body { margin: 0; background: #f7f8fa; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; font-size: 15px; }
+  header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 12px 16px; font-weight: 600; }
+  main { padding: 12px 16px 40px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin: 0 0 12px; }
+  .card h2 { font-size: 15px; margin: 0 0 8px; }
+  .muted { color: #6b7280; font-size: 13px; }
+  pre { white-space: pre-wrap; word-break: break-all; font-size: 12.5px; margin: 0; line-height: 1.5; }
+  button { font-size: 15px; padding: 10px 14px; margin: 4px 6px 4px 0; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; }
+  button.primary { background: #16a34a; border-color: #16a34a; color: #fff; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  td, th { border-bottom: 1px solid #eef0f3; padding: 4px 2px; text-align: left; }
+  .ok { color: #15803d; } .bad { color: #b91c1c; }
+</style>
+</head>
+<body>
+<header>🍱 點餐實驗頁（M0）</header>
+<main>
+  <div class="card"><h2>狀態</h2><div id="status">載入中…</div></div>
+  <div class="card"><h2>結果（E1／E5）</h2><pre id="facts">—</pre></div>
+  <div class="card">
+    <h2>動作</h2>
+    <button id="btnSend" class="primary" disabled>E8 送一則測試訊息</button>
+    <button id="btnPerm" disabled>E5 要求授權</button>
+    <button id="btnPing" disabled>E7 叫一次點餐伺服器</button>
+    <div id="actionOut" class="muted"></div>
+  </div>
+  <div class="card">
+    <h2>E7 計時（每開一次記一列，只存這支手機）</h2>
+    <div class="muted">冷＝把 LINE 整個關掉、等 10 分鐘以上再開；熱＝關掉這一頁、馬上再開。「距上次」超過 10 分鐘的那列當冷。</div>
+    <table><thead><tr><th>#</th><th>時間</th><th>距上次</th><th>初始化</th><th>整頁</th><th>伺服器</th></tr></thead><tbody id="runs"></tbody></table>
+    <button id="btnClear">清除計時紀錄</button>
+  </div>
+  <div class="card">
+    <button id="btnCopy">複製全部結果</button>
+    <div class="muted">把複製的文字貼回給 Claude（或整頁截圖）。</div>
+  </div>
+</main>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="lab.js"></script>
+</body>
+</html>
