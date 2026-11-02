@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>鋁創 · 模具檔案下載</title>
+<!--
+  鋁創模具派工系統：手機瀏覽器的下載頁（v0.5.1）。
+  LINE 裡（LIFF 瀏覽器）不支援 <a download>，所以 LINE 頁按「下載」會先跟模具伺服器拿一次性憑證（5 分鐘、只能用一次、只綁一個檔），
+  再用 liff.openWindow(external) 開手機的 Safari／Chrome 到這一頁（mold-dl.html#t=憑證&l=語言）。
+  這一頁：先把網址的 # 後面清掉 → 用憑證跟伺服器（?api=dl）換檔案 → 給一顆「下載」鈕存檔。不登入、不在瀏覽器存任何東西；外面來的字一律 textContent；不寫內嵌 script。
+-->
+<style>
+  html, body { margin: 0; background: #f7f8fa; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Noto Sans Thai", "Microsoft JhengHei", sans-serif; }
+  #box { max-width: 520px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  #msg { font-size: 15px; line-height: 1.6; }
+  #msg.err { color: #b91c1c; }
+  #name { font-size: 16px; font-weight: 600; word-break: break-all; margin: 8px 0 16px; }
+  .btn { display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 14px 12px; border-radius: 10px; border: 0; background: #2563eb; color: #fff; font-size: 17px; text-decoration: none; margin: 8px 0; }
+  .btn.sec { background: #e5e7eb; color: #111827; }
+  .hint { color: #6b7280; font-size: 14px; line-height: 1.6; margin: 6px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="box">
+  <h1 id="title">鋁創 · 模具檔案下載</h1>
+  <div id="msg" role="status" aria-live="polite">準備下載… Preparing… กำลังเตรียม…</div>
+  <div id="name" hidden></div>
+  <a id="dl" class="btn" hidden></a>
+  <button id="retry" class="btn sec" type="button" hidden></button>
+  <div id="hints" hidden></div>
+</div>
+<script src="mold-dl.js"></script>
+</body>
+</html>
