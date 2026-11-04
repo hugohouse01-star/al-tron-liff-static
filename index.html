@@ -262,7 +262,8 @@
               <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('appProofFile').click()" data-i18n="apply.pickFile">📁 選檔</button>
             </div>
             <input type="file" id="appProofCamera" accept="image/*" capture="environment" style="display:none" onchange="onAppFileChosen(this)">
-            <input type="file" id="appProofFile" accept="image/*,application/pdf,.doc,.docx" style="display:none" onchange="onAppFileChosen(this)">
+            <input type="file" id="appProofFile" accept="image/*,application/pdf,.doc,.docx" multiple style="display:none" onchange="onAppFileChosen(this)">
+            <div style="font-size:11px;color:#888;margin-top:4px;" data-i18n="pf.limitHint">可以放多個檔（最多 10 個，每個 10 MB 以內）</div>
             <div id="appProofFileName" style="font-size:11px;color:#06C755;margin-top:4px;"></div>
           </div>
           <div class="field">
@@ -330,28 +331,36 @@
 <!-- 補證明 modal -->
 <div id="proofModal" class="modal-mask hidden">
   <div class="modal">
-    <h3 data-i18n="proof.title">📎 補證明</h3>
+    <h3><span data-i18n="pf.btn">📎 證明</span> <span id="proofModalReqId" style="font-size:12px;color:#888;font-weight:normal;"></span></h3>
+    <div id="proofModalLock" class="alert alert-warning hidden" style="font-size:12px;"></div>
     <div class="field">
-      <label data-i18n="proof.fileLabel">檔案（可選）</label>
+      <label data-i18n="pf.current">已經傳的檔</label>
+      <div id="proofModalCurrent" style="font-size:12px;"></div>
+    </div>
+    <div id="proofModalAddArea">
+    <div class="field">
+      <label data-i18n="pf.add">追加檔案</label>
       <div style="display:flex;gap:6px;">
         <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('proofModalCamera').click()" data-i18n="apply.takePhoto">📷 拍照</button>
         <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px;" onclick="document.getElementById('proofModalFile').click()" data-i18n="apply.pickFile">📁 選檔</button>
       </div>
       <input type="file" id="proofModalCamera" accept="image/*" capture="environment" style="display:none" onchange="onProofModalFileChosen(this)">
-      <input type="file" id="proofModalFile" accept="image/*,application/pdf,.doc,.docx" style="display:none" onchange="onProofModalFileChosen(this)">
+      <input type="file" id="proofModalFile" accept="image/*,application/pdf,.doc,.docx" multiple style="display:none" onchange="onProofModalFileChosen(this)">
+      <div style="font-size:11px;color:#888;margin-top:4px;" data-i18n="pf.limitHint">可以放多個檔（最多 10 個，每個 10 MB 以內）</div>
       <div id="proofModalFileName" style="font-size:11px;color:#06C755;margin-top:4px;"></div>
     </div>
     <div class="field">
-      <label data-i18n="proof.urlLabel">連結（可選）</label>
+      <label data-i18n="pf.linkLabel">連結（有填才會換掉原本的）</label>
       <input type="text" id="proofModalUrl" placeholder="https://…">
     </div>
     <div class="field">
-      <label data-i18n="proof.noteLabel">說明（可選）</label>
+      <label data-i18n="pf.noteLabel">說明（會接在原本的後面）</label>
       <textarea id="proofModalNote"></textarea>
     </div>
+    </div>
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeProofModal()" data-i18n="proof.cancel">取消</button>
-      <button class="btn btn-primary" onclick="submitProofModal(this)" data-i18n="proof.submit">送出</button>
+      <button class="btn btn-secondary" onclick="closeProofModal()" data-i18n="pf.close">關閉</button>
+      <button class="btn btn-primary" id="proofModalSubmit" onclick="submitProofModal(this)" data-i18n="proof.submit">送出</button>
     </div>
   </div>
 </div>
@@ -362,7 +371,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.30';  // v1.0.516 配套:已核准的假改「申請取消」(主管核准才生效);已開始的假不能自行取消;待簽卡多「取消申請」
+var APP_VERSION = 'static-1.0.31';  // v1.0.525 配套:證明可以放多個檔(最多 10 個、每個 10 MB);補證明改成追加;還沒覆核通過可以拿掉;歷程看得到自己傳的檔
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -418,6 +427,33 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 待補證明', 'history.proof.submitted': '⏳ 待覆核',
     'history.proof.verified': '✅ 已覆核', 'history.proof.rejected': '⚠ 證明被退',
     'history.addProof': '📎 補證明',
+    // v1.0.525 證明多檔
+    'pf.limitHint': '可以放多個檔（最多 10 個，每個 10 MB 以內）',
+    'pf.tooBig': '「{name}」太大（{size}），單檔上限 10 MB',
+    'pf.empty': '「{name}」是空的檔案',
+    'pf.tooMany': '一張假單最多 {max} 個檔',
+    'pf.nFiles': '📎 {n} 個檔',
+    'pf.btn': '📎 證明',
+    'pf.uploading': '證明上傳中 {i}／{n}…',
+    'pf.allDone': '✅ {n} 個證明檔都傳好了',
+    'pf.someFailed': '⚠ 有 {k} 個檔沒傳成功：{names}。請到「歷程」按「📎 證明」再傳一次',
+    'pf.attachFailed': '⚠ 檔案傳上去了，但沒掛到假單上：{msg}。請到「歷程」按「📎 證明」再試一次',
+    'pf.current': '已經傳的檔',
+    'pf.none': '還沒有檔',
+    'pf.removeBtn': '拿掉',
+    'pf.removeConfirm': '確定把「{name}」從這張假單拿掉？（檔案不會刪，會留紀錄）',
+    'pf.add': '追加檔案',
+    'pf.linkLabel': '連結（有填才會換掉原本的）',
+    'pf.noteLabel': '說明（會接在原本的後面）',
+    'pf.curLink': '目前的連結',
+    'pf.curNote': '目前的說明',
+    'pf.lockedVerified': '證明已覆核通過，不能再追加或拿掉；要補或要拿掉請找人資',
+    'pf.lockedClosed': '證明已由人資結案，不能再追加或拿掉；要補或要拿掉請找人資',
+    'pf.lockedStatus': '這張單已駁回或取消，不能補證明',
+    'pf.nothing': '請至少追加一個檔、連結或說明',
+    'pf.saved': '✅ 已送出',
+    'pf.close': '關閉',
+    'pf.working': '處理中…',
     'history.cancel': '🗑 取消請假',
     'history.cancelConfirm': '確定要取消這筆請假嗎？取消後若已扣假會自動退還。',
     'history.cancelOk': '已取消請假',
@@ -544,6 +580,33 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 Awaiting proof', 'history.proof.submitted': '⏳ Under review',
     'history.proof.verified': '✅ Verified', 'history.proof.rejected': '⚠ Proof rejected',
     'history.addProof': '📎 Add proof',
+    // v1.0.525 multi-file proof
+    'pf.limitHint': 'You can attach several files (up to 10, max 10 MB each)',
+    'pf.tooBig': '"{name}" is too large ({size}); max 10 MB per file',
+    'pf.empty': '"{name}" is an empty file',
+    'pf.tooMany': 'Up to {max} files per leave request',
+    'pf.nFiles': '📎 {n} file(s)',
+    'pf.btn': '📎 Proof',
+    'pf.uploading': 'Uploading proof {i}/{n}…',
+    'pf.allDone': '✅ All {n} proof file(s) uploaded',
+    'pf.someFailed': '⚠ {k} file(s) failed: {names}. Open "History" and tap "📎 Proof" to upload again',
+    'pf.attachFailed': '⚠ Files uploaded but not attached: {msg}. Please try again from "History" → "📎 Proof"',
+    'pf.current': 'Attached files',
+    'pf.none': 'No files yet',
+    'pf.removeBtn': 'Remove',
+    'pf.removeConfirm': 'Remove "{name}" from this leave request? (The file is kept and the removal is logged.)',
+    'pf.add': 'Add files',
+    'pf.linkLabel': 'Link (replaces the current one only if filled)',
+    'pf.noteLabel': 'Note (added after the current note)',
+    'pf.curLink': 'Current link',
+    'pf.curNote': 'Current note',
+    'pf.lockedVerified': 'Proof already verified; files can no longer be added or removed. Contact HR if needed',
+    'pf.lockedClosed': 'Proof closed by HR; files can no longer be added or removed. Contact HR if needed',
+    'pf.lockedStatus': 'This request was rejected or cancelled; proof cannot be added',
+    'pf.nothing': 'Add at least one file, link or note',
+    'pf.saved': '✅ Submitted',
+    'pf.close': 'Close',
+    'pf.working': 'Working…',
     'history.cancel': '🗑 Cancel leave',
     'history.cancelConfirm': 'Cancel this leave request? Any deducted quota will be refunded.',
     'history.cancelOk': 'Leave cancelled',
@@ -670,6 +733,33 @@ var I18N_DICTS = {
     'history.proof.pending': '📌 รอหลักฐาน', 'history.proof.submitted': '⏳ กำลังตรวจ',
     'history.proof.verified': '✅ ผ่าน', 'history.proof.rejected': '⚠ หลักฐานถูกปฏิเสธ',
     'history.addProof': '📎 เพิ่มหลักฐาน',
+    // v1.0.525 แนบหลักฐานหลายไฟล์
+    'pf.limitHint': 'แนบได้หลายไฟล์ (สูงสุด 10 ไฟล์ ไฟล์ละไม่เกิน 10 MB)',
+    'pf.tooBig': '"{name}" ใหญ่เกินไป ({size}) จำกัดไฟล์ละ 10 MB',
+    'pf.empty': '"{name}" เป็นไฟล์ว่าง',
+    'pf.tooMany': 'แนบได้สูงสุด {max} ไฟล์ต่อใบลา',
+    'pf.nFiles': '📎 {n} ไฟล์',
+    'pf.btn': '📎 หลักฐาน',
+    'pf.uploading': 'กำลังอัปโหลดหลักฐาน {i}/{n}…',
+    'pf.allDone': '✅ อัปโหลดหลักฐานครบ {n} ไฟล์แล้ว',
+    'pf.someFailed': '⚠ อัปโหลดไม่สำเร็จ {k} ไฟล์: {names} กรุณาไปที่ "ประวัติ" กด "📎 หลักฐาน" แล้วอัปโหลดอีกครั้ง',
+    'pf.attachFailed': '⚠ อัปโหลดแล้วแต่แนบกับใบลาไม่สำเร็จ: {msg} กรุณาลองใหม่ที่ "ประวัติ" → "📎 หลักฐาน"',
+    'pf.current': 'ไฟล์ที่แนบแล้ว',
+    'pf.none': 'ยังไม่มีไฟล์',
+    'pf.removeBtn': 'นำออก',
+    'pf.removeConfirm': 'นำ "{name}" ออกจากใบลานี้หรือไม่? (ไฟล์ไม่ถูกลบ และมีบันทึกไว้)',
+    'pf.add': 'เพิ่มไฟล์',
+    'pf.linkLabel': 'ลิงก์ (กรอกเมื่อต้องการเปลี่ยนของเดิม)',
+    'pf.noteLabel': 'หมายเหตุ (ต่อท้ายของเดิม)',
+    'pf.curLink': 'ลิงก์ปัจจุบัน',
+    'pf.curNote': 'หมายเหตุปัจจุบัน',
+    'pf.lockedVerified': 'หลักฐานผ่านการตรวจแล้ว เพิ่มหรือนำออกไม่ได้ หากต้องการกรุณาติดต่อฝ่ายบุคคล',
+    'pf.lockedClosed': 'ฝ่ายบุคคลปิดเรื่องหลักฐานแล้ว เพิ่มหรือนำออกไม่ได้ หากต้องการกรุณาติดต่อฝ่ายบุคคล',
+    'pf.lockedStatus': 'ใบลานี้ถูกปฏิเสธหรือยกเลิกแล้ว เพิ่มหลักฐานไม่ได้',
+    'pf.nothing': 'กรุณาเพิ่มไฟล์ ลิงก์ หรือหมายเหตุอย่างน้อยหนึ่งอย่าง',
+    'pf.saved': '✅ ส่งแล้ว',
+    'pf.close': 'ปิด',
+    'pf.working': 'กำลังดำเนินการ…',
     'history.cancel': '🗑 ยกเลิกการลา',
     'history.cancelConfirm': 'ยืนยันยกเลิกการลานี้หรือไม่? หากหักวันลาแล้วจะคืนให้อัตโนมัติ',
     'history.cancelOk': 'ยกเลิกการลาแล้ว',
@@ -895,6 +985,7 @@ var ACTION_MAP = {
   'webLiffProofReview':              { action: 'proofReview',       params: ['idToken', 'requestId', 'decision', 'note'] },
   'webLiffUpdateProofData':          { action: 'updateProofData',   params: ['idToken', 'requestId', 'proofData'] },
   'webLiffUploadProofFile':          { action: 'uploadProofFile',   params: ['idToken', 'requestId', 'fileObj'] },
+  'webLiffRemoveProofFile':          { action: 'removeProofFile',   params: ['idToken', 'requestId', 'fileId'] },   // v1.0.525
   'webLiffGetMyPendingAcks':         { action: 'myAcks',            params: ['idToken'] },
   'webLiffAckConfirm':               { action: 'ackConfirm',        params: ['idToken', 'ackId'] }
 };
@@ -1116,21 +1207,86 @@ var APPLY_LEAVE_TYPES = null;
 var APPLY_LEAVE_TYPES_LOADING = false;
 var ANNUAL_SPECIAL = false;  // v1.0.158：外籍特休特殊規則(0.5h 最小單位 + 可借支)
 var ANNUAL_WAIVE_ACTIVE = false;  // v1.0.264：後台「特休申請門檻臨時放寬」開啟中 → 前端也跳過提前天數/最少時數檢查
-var _LIFF_BUILD = 'static-1.0.30';  // build marker(強制 GitHub Pages 重新 build)
+var _LIFF_BUILD = 'static-1.0.31';  // build marker(強制 GitHub Pages 重新 build)
 var DELEGATE_LIST_LOADED = false;
-var APP_SELECTED_FILE = null;          // 共用：拍照/選檔都寫進這個
-var PROOF_MODAL_SELECTED_FILE = null;  // 補證明 modal 用
+// v1.0.525：證明可以放多個檔（最多 10 個、每個 10 MB；伺服器會再擋一次）。拍照、選檔都加進清單，每個有 ✕。
+var PF_MAX_FILES = 10, PF_MAX_BYTES = 10 * 1024 * 1024;
+var APP_SELECTED_FILES = [];          // 申請表選的檔
+var PROOF_MODAL_FILES = [];           // 證明視窗要追加的檔
+var HIST_ROWS = {};                   // 歷程：requestId → row（證明視窗用）
+function _pfEscA(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function _pfSize(b) { b = Number(b) || 0; return b >= 1048576 ? (Math.round(b / 104857.6) / 10) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function _pfAddFiles(list, fileList, already) {
+  var errs = [];
+  for (var i = 0; i < (fileList ? fileList.length : 0); i++) {
+    var f = fileList[i];
+    if (!f) continue;
+    if (!f.size) { errs.push(t('pf.empty', { name: f.name })); continue; }
+    if (f.size > PF_MAX_BYTES) { errs.push(t('pf.tooBig', { name: f.name, size: _pfSize(f.size) })); continue; }
+    var dup = list.some(function (x) { return x.name === f.name && x.size === f.size && x.lastModified === f.lastModified; });
+    if (dup) continue;
+    if (list.length + (already || 0) >= PF_MAX_FILES) { errs.push(t('pf.tooMany', { max: PF_MAX_FILES })); break; }
+    list.push(f);
+  }
+  return errs;
+}
+function _pfPendingHtml(list, removeFn) {
+  return list.map(function (f, i) {
+    return '<div style="display:flex;align-items:center;gap:6px;margin-top:2px;">📄 <span>' + escapeHtml(f.name) + '</span><span style="color:#888;">（' + _pfSize(f.size) + '）</span>'
+      + '<button type="button" onclick="' + removeFn + '(' + i + ')" style="border:none;background:none;color:#c82333;font-size:14px;padding:0 6px;cursor:pointer;">✕</button></div>';
+  }).join('');
+}
+/** 送 files 時順便帶第一個的舊欄位（fileId／fileUrl／fileName）：新後端只看 files、舊欄位照驗；HRM 退回 v1.0.524 時舊欄位還能用 */
+function _pfWithMirror(o, done) {
+  done = done || o.files || [];
+  if (done.length) { o.files = done; o.fileId = done[0].fileId; o.fileUrl = done[0].fileUrl; o.fileName = done[0].fileName; }
+  return o;
+}
+/** 這張單的檔（新後端給 files；舊後端只有 fileViewUrl／photoViewUrl 時也轉成清單） */
+function _liffFilesOf(pd) {
+  if (!pd) return [];
+  //  每個都有 viewUrl 才用 files（新後端）；HRM 退回 v1.0.524 時 files 是原樣存的、沒有連結 ⇒ 改用舊欄位，覆核頁才不會空白
+  if (Array.isArray(pd.files) && pd.files.every(function (f) { return f && f.viewUrl; })) return pd.files;
+  var out = [];
+  if (pd.photoViewUrl) out.push({ fileName: t('pending.det.proofPhoto'), viewUrl: pd.photoViewUrl });
+  if (pd.fileViewUrl) out.push({ fileName: pd.fileName || t('pending.det.proofFile'), viewUrl: pd.fileViewUrl });
+  return out;
+}
+/** 逐個上傳 ⇒ { done:[{fileId,fileName,fileUrl,size}], failed:[{name,msg}] } */
+async function _pfUploadAll(requestId, files, onProgress) {
+  var done = [], failed = [];
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    if (onProgress) onProgress(i + 1, files.length, f);
+    try {
+      var b64 = await fileToBase64(f);
+      var up = await rpc('webLiffUploadProofFile', [SESSION.idToken, requestId, { base64: b64, fileName: f.name, mimeType: f.type || 'application/octet-stream' }]);
+      if (up && up.success && up.data) done.push({ fileId: up.data.fileId, fileName: up.data.fileName, fileUrl: up.data.fileUrl, size: f.size });
+      else failed.push({ name: f.name, msg: (up && up.message) || '' });
+    } catch (e) { failed.push({ name: f.name, msg: String((e && e.message) || e) }); }
+  }
+  return { done: done, failed: failed };
+}
+function _pfFailMsg(failed) { return t('pf.someFailed', { k: failed.length, names: failed.map(function (x) { return x.name; }).join('、') }); }
 
 function onAppFileChosen(input) {
-  var f = input.files && input.files[0]; if (!f) return;
-  APP_SELECTED_FILE = f;
-  var el = $('appProofFileName'); if (el) el.textContent = '✓ ' + f.name;
+  var errs = _pfAddFiles(APP_SELECTED_FILES, input.files || [], 0);
+  try { input.value = ''; } catch (e) {}
+  _appRenderFiles();
+  if (errs.length) alert(errs.join('\n'));
 }
+function _appRenderFiles() { var el = $('appProofFileName'); if (el) el.innerHTML = _pfPendingHtml(APP_SELECTED_FILES, 'onAppRemoveFile'); }
+function onAppRemoveFile(i) { APP_SELECTED_FILES.splice(i, 1); _appRenderFiles(); }
 function onProofModalFileChosen(input) {
-  var f = input.files && input.files[0]; if (!f) return;
-  PROOF_MODAL_SELECTED_FILE = f;
-  var el = $('proofModalFileName'); if (el) el.textContent = '✓ ' + f.name;
+  var r = HIST_ROWS[PROOF_MODAL_REQID] || {};
+  var have = _liffFilesOf(r.proofData).length;
+  var errs = _pfAddFiles(PROOF_MODAL_FILES, input.files || [], have);
+  try { input.value = ''; } catch (e) {}
+  _pmRenderPending();
+  if (errs.length) alert(errs.join('\n'));
 }
+function _pmRenderPending() { var el = $('proofModalFileName'); if (el) el.innerHTML = _pfPendingHtml(PROOF_MODAL_FILES, 'onProofModalRemovePending'); }
+function onProofModalRemovePending(i) { PROOF_MODAL_FILES.splice(i, 1); _pmRenderPending(); }
 var REL_KEYS = ['parent','foster_parent','step_parent','spouse','grandparent','child',
                 'spouse_parent','spouse_foster_parent','spouse_step_parent',
                 'great_grandparent','sibling','spouse_grandparent'];
@@ -1314,7 +1470,7 @@ async function onSubmitLeave(btn) {
   var relativeName = $('appRelativeName') ? ($('appRelativeName').value || '').trim() : '';
   var proofUrl = $('appProofUrl') ? ($('appProofUrl').value || '').trim() : '';
   var proofNote = $('appProofNote') ? ($('appProofNote').value || '').trim() : '';
-  var proofFile = APP_SELECTED_FILE; // 拍照或選檔都寫進這個
+  var proofFiles = APP_SELECTED_FILES.slice(); // 拍照或選檔都加進這個（v1.0.525：多個）
   var d1 = $('appDelegate1') ? $('appDelegate1').value : '';
   var d2 = $('appDelegate2') ? $('appDelegate2').value : '';
   var d3 = $('appDelegate3') ? $('appDelegate3').value : '';
@@ -1355,24 +1511,20 @@ async function onSubmitLeave(btn) {
     resBox.innerHTML = '<div class="alert alert-success">' + msg + '</div>';
     try { resBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
 
-    // 有檔案 → 上傳
-    if (proofFile) {
+    // 有檔案 → 逐個上傳，再一次掛進 proof_data（v1.0.525：多個；失敗會講是哪一個）
+    if (proofFiles.length) {
+      var _prog = document.createElement('div'); _prog.className = 'alert alert-info'; resBox.appendChild(_prog);
       try {
-        var b64 = await fileToBase64(proofFile);
-        var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, d.requestId, {
-          base64: b64, fileName: proofFile.name, mimeType: proofFile.type || 'application/octet-stream'
-        }]);
-        if (upRes && upRes.success) {
-          // 把 fileId/Url merge 進 proofData，更新 proof_data_json
-          var merged = Object.assign({}, proofData, {
-            fileId: upRes.data.fileId, fileUrl: upRes.data.fileUrl, fileName: upRes.data.fileName
-          });
-          await rpc('webLiffUpdateProofData', [SESSION.idToken, d.requestId, merged]);
-        } else {
-          resBox.innerHTML += '<div class="alert alert-warning">' + t('apply.uploadFail') + '</div>';
-        }
+        var _u = await _pfUploadAll(d.requestId, proofFiles, function (i, n) { _prog.textContent = t('pf.uploading', { i: i, n: n }); });
+        if (_u.done.length) {
+          var merged = Object.assign({}, proofData, _pfWithMirror({ files: _u.done }));
+          var _upd = await rpc('webLiffUpdateProofData', [SESSION.idToken, d.requestId, merged]);
+          if (!_upd || !_upd.success) { _prog.className = 'alert alert-warning'; _prog.textContent = t('pf.attachFailed', { msg: (_upd && _upd.message) || '' }); }
+          else if (_u.failed.length) { _prog.className = 'alert alert-warning'; _prog.textContent = _pfFailMsg(_u.failed); }
+          else { _prog.className = 'alert alert-success'; _prog.textContent = t('pf.allDone', { n: _u.done.length }); }
+        } else { _prog.className = 'alert alert-warning'; _prog.textContent = _pfFailMsg(_u.failed); }
       } catch (upErr) {
-        resBox.innerHTML += '<div class="alert alert-warning">' + t('apply.uploadFail') + ' (' + upErr.message + ')</div>';
+        _prog.className = 'alert alert-warning'; _prog.textContent = t('apply.uploadFail') + ' (' + (upErr.message || upErr) + ')';
       }
     }
 
@@ -1380,8 +1532,8 @@ async function onSubmitLeave(btn) {
     $('appReason').value = ''; $('appProofUrl').value = ''; $('appProofNote').value = '';
     if ($('appProofFile')) $('appProofFile').value = '';
     if ($('appProofCamera')) $('appProofCamera').value = '';
-    APP_SELECTED_FILE = null;
-    if ($('appProofFileName')) $('appProofFileName').textContent = '';
+    APP_SELECTED_FILES = [];
+    if ($('appProofFileName')) $('appProofFileName').innerHTML = '';
     APPLY_LEAVE_TYPES = null;
     setTimeout(loadApplyTabIfNeeded, 500);
   } catch (e) {
@@ -1467,7 +1619,11 @@ function renderHistory(requests) {
     else if (r.status === 'cancelled') { statusColor = '#888'; statusText = t('history.status.cancelled'); }
     else { statusColor = '#f57c00'; statusText = t('history.status.pending'); }
     var subBadge = '';
-    var needProof = (r.proofStatus === 'pending_proof' || r.proofStatus === 'rejected_at_review');
+    //  v1.0.525：還沒鎖住（伺服器給的 proofEditable）就有「📎 證明」鈕——不只待補件；有檔的單鎖住了也能打開來看
+    HIST_ROWS[r.requestId] = r;
+    var _pfFiles = _liffFilesOf(r.proofData);
+    var _pfAny = _pfFiles.length || (r.proofData && (r.proofData.link || r.proofData.note));
+    var needProof = (r.proofEditable !== false) || _pfAny;
     if (r.status === 'approved' && r.proofStatus) {
       if (r.proofStatus === 'pending_proof') subBadge = '<div style="font-size:11px;color:#ff9800;">' + t('history.proof.pending') + '</div>';
       else if (r.proofStatus === 'submitted') subBadge = '<div style="font-size:11px;color:#2196f3;">' + t('history.proof.submitted') + '</div>';
@@ -1475,7 +1631,8 @@ function renderHistory(requests) {
       else if (r.proofStatus === 'rejected_at_review') subBadge = '<div style="font-size:11px;color:#f44336;">' + t('history.proof.rejected') + '</div>';
     }
     if (needProof) {
-      subBadge += '<button onclick="openProofModal(\'' + r.requestId + '\')" style="margin-top:6px;padding:6px 10px;font-size:12px;border:1px solid #06C755;background:white;color:#06C755;border-radius:5px;cursor:pointer;">' + t('history.addProof') + '</button>';
+      if (_pfFiles.length) subBadge += '<div style="font-size:11px;color:#555;margin-top:4px;">' + t('pf.nFiles', { n: _pfFiles.length }) + '</div>';
+      subBadge += '<button onclick="openProofModal(\'' + r.requestId + '\')" style="margin-top:6px;padding:6px 10px;font-size:12px;border:1px solid #06C755;background:white;color:#06C755;border-radius:5px;cursor:pointer;">' + t('pf.btn') + '</button>';
     }
     // v1.0.157：知會確認進度(本人也看得到)
     if (r.ackSummary && r.ackSummary.total > 0) {
@@ -1907,14 +2064,12 @@ function liffOpenExt(url) {
 function _liffProofLinksHtml(pd) {
   if (!pd) return '';
   // v1.0.192：證明改打系統代理 viewUrl(script.google.com),不碰 drive.google.com → 免 Google 帳號選擇、任何檔型都能看
-  var fileHref  = pd.fileViewUrl  || _driveDirectUrl(pd.fileId, pd.fileUrl);
-  var photoHref = pd.photoViewUrl || _driveDirectUrl(pd.photoFileId, pd.photoUrl);
+  var _files = _liffFilesOf(pd);   // v1.0.525：每個檔都列
   var aS = 'style="color:#06C755;text-decoration:underline;font-weight:600;cursor:pointer;"';
-  function esc(u){ return String(u).replace(/'/g, "\\'"); }
-  function lk(icon, label, u){ return '<div style="margin-top:4px;">' + icon + ' <a href="javascript:void(0)" onclick="liffOpenExt(\'' + esc(u) + '\');return false;" ' + aS + '>' + label + '</a></div>'; }
+  //  v1.0.525：網址放 data-u（屬性跳脫），不再塞進 onclick 的 JS 字串——員工貼的連結裡有 " 或 \ 就能跳出來（主管的 LINE 頁會被插碼）
+  function lk(icon, label, u){ return '<div style="margin-top:4px;">' + icon + ' <a href="javascript:void(0)" data-u="' + _pfEscA(u) + '" onclick="liffOpenExt(this.dataset.u);return false;" ' + aS + '>' + label + '</a></div>'; }
   var h = '<div style="margin-top:6px;font-size:12px;">';
-  if (photoHref) h += lk('📷', t('pending.det.proofPhoto'), photoHref);
-  if (fileHref)  h += lk('📁', escapeHtml(pd.fileName || t('pending.det.proofFile')), fileHref);
+  _files.forEach(function (f) { if (f.viewUrl) h += lk('📄', escapeHtml(f.fileName || t('pending.det.proofFile')), f.viewUrl); });
   if (pd.link)   h += lk('🔗', t('pending.det.proofLink'), pd.link);
   if (pd.note)   h += '<div>📝 ' + escapeHtml(pd.note) + '</div>';
   h += '</div>';
@@ -1933,7 +2088,8 @@ function showPendingDetail(requestId, kind) {
     + (r.annualRemainingAfter != null ? (t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '\n') : '')
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
-    if (r.proofData.fileUrl) msg += t('pending.det.proofFile') + ': ' + r.proofData.fileUrl + '\n';
+    var _fl = _liffFilesOf(r.proofData);   // v1.0.525：列檔名（連結在卡片上點）
+    if (_fl.length) msg += t('pending.det.proofFile') + ': ' + _fl.map(function (f) { return f.fileName || '-'; }).join('、') + '\n';
     if (r.proofData.link) msg += t('pending.det.proofLink') + ': ' + r.proofData.link + '\n';
     if (r.proofData.note) msg += t('pending.det.proofNote') + ': ' + r.proofData.note + '\n';
   }
@@ -2025,55 +2181,92 @@ async function submitRejectModal(btn) {
   } catch (e) { btn.disabled = false; alert(e.message || e); }
 }
 
-// === proof modal (補證明) =============================================
+// === proof modal (證明：看／拿掉／追加；v1.0.525) =====================
 var PROOF_MODAL_REQID = null;
+var PROOF_MODAL_DIRTY = false;
+function _pmLockText(r) {
+  if (r && (r.status === 'rejected' || r.status === 'cancelled')) return t('pf.lockedStatus');
+  if (r && r.proofStatus === 'overdue_handled') return t('pf.lockedClosed');
+  return t('pf.lockedVerified');
+}
+function _pmRender() {
+  var r = HIST_ROWS[PROOF_MODAL_REQID] || { requestId: PROOF_MODAL_REQID, proofEditable: true };
+  var pd = r.proofData || {}, files = _liffFilesOf(pd), editable = (r.proofEditable !== false);
+  if ($('proofModalReqId')) $('proofModalReqId').textContent = r.requestId || '';
+  var lock = $('proofModalLock');
+  if (lock) { lock.textContent = '🔒 ' + _pmLockText(r); lock.classList.toggle('hidden', editable); }
+  var h = '';
+  if (!files.length) h += '<div style="color:#888;">' + t('pf.none') + '</div>';
+  files.forEach(function (f) {
+    h += '<div style="display:flex;align-items:center;gap:6px;margin:4px 0;">📄 '
+       + '<a href="javascript:void(0)" data-u="' + _pfEscA(f.viewUrl || '') + '" onclick="liffOpenExt(this.dataset.u);return false;" style="color:#06C755;text-decoration:underline;font-weight:600;">' + escapeHtml(f.fileName || t('pending.det.proofFile')) + '</a>'
+       + (f.size ? '<span style="color:#888;">（' + _pfSize(f.size) + '）</span>' : '')
+       + ((editable && f.fileId) ? '<button type="button" data-fid="' + _pfEscA(f.fileId) + '" onclick="onProofModalRemove(this.dataset.fid)" style="margin-left:auto;padding:3px 10px;font-size:12px;border:1px solid #c82333;background:white;color:#c82333;border-radius:5px;cursor:pointer;">' + t('pf.removeBtn') + '</button>' : '')
+       + '</div>';
+  });
+  if (pd.link) h += '<div style="margin-top:4px;">' + t('pf.curLink') + '：' + escapeHtml(pd.link) + '</div>';
+  if (pd.note) h += '<div style="margin-top:4px;">' + t('pf.curNote') + '：' + escapeHtml(pd.note) + '</div>';
+  if ($('proofModalCurrent')) $('proofModalCurrent').innerHTML = h;
+  if ($('proofModalAddArea')) $('proofModalAddArea').classList.toggle('hidden', !editable);
+  if ($('proofModalSubmit')) $('proofModalSubmit').classList.toggle('hidden', !editable);
+}
 function openProofModal(requestId) {
   if (!SESSION || !SESSION.idToken) { alert(t('app.sessionLost')); return; }
   PROOF_MODAL_REQID = requestId;
-  PROOF_MODAL_SELECTED_FILE = null;
+  PROOF_MODAL_FILES = [];
+  PROOF_MODAL_DIRTY = false;
   if ($('proofModalFile')) $('proofModalFile').value = '';
   if ($('proofModalCamera')) $('proofModalCamera').value = '';
   $('proofModalUrl').value = '';
   $('proofModalNote').value = '';
-  if ($('proofModalFileName')) $('proofModalFileName').textContent = '';
+  _pmRenderPending();
+  _pmRender();
   $('proofModal').classList.remove('hidden');
 }
 function closeProofModal() {
   $('proofModal').classList.add('hidden');
   PROOF_MODAL_REQID = null;
-  PROOF_MODAL_SELECTED_FILE = null;
+  PROOF_MODAL_FILES = [];
+  if (PROOF_MODAL_DIRTY) { PROOF_MODAL_DIRTY = false; loadHistoryTab(); }
+}
+async function onProofModalRemove(fileId) {
+  var r = HIST_ROWS[PROOF_MODAL_REQID]; if (!r || !r.proofData) return;
+  var files = _liffFilesOf(r.proofData), f = null;
+  files.forEach(function (x) { if (x.fileId === fileId) f = x; });
+  if (!f) return;
+  if (!confirm(t('pf.removeConfirm', { name: f.fileName || fileId }))) return;
+  try {
+    var res = await rpc('webLiffRemoveProofFile', [SESSION.idToken, r.requestId, fileId]);
+    if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
+    r.proofData.files = files.filter(function (x) { return x.fileId !== fileId; });
+    if (res.data && res.data.proofStatus) r.proofStatus = res.data.proofStatus;
+    PROOF_MODAL_DIRTY = true;
+    _pmRender();
+  } catch (e) { alert(e.message || e); }
 }
 async function submitProofModal(btn) {
   if (!PROOF_MODAL_REQID) return;
+  var reqId = PROOF_MODAL_REQID;
   var url = ($('proofModalUrl').value || '').trim();
   var note = ($('proofModalNote').value || '').trim();
-  var file = PROOF_MODAL_SELECTED_FILE;
-  if (!url && !note && !file) { alert(t('proof.fileLabel')); return; }
-  btn.disabled = true;
+  var adds = PROOF_MODAL_FILES.slice();
+  if (!url && !note && !adds.length) { alert(t('pf.nothing')); return; }
+  btn.disabled = true; var _lbl = btn.textContent; btn.textContent = t('pf.working');
   try {
+    var u = { done: [], failed: [] };
+    if (adds.length) u = await _pfUploadAll(reqId, adds, function (i, n) { btn.textContent = t('pf.uploading', { i: i, n: n }); });
     var proofData = {};
+    if (u.done.length) _pfWithMirror(proofData, u.done);
     if (url) proofData.link = url;
     if (note) proofData.note = note;
-    if (file) {
-      var b64 = await fileToBase64(file);
-      var upRes = await rpc('webLiffUploadProofFile', [SESSION.idToken, PROOF_MODAL_REQID, {
-        base64: b64, fileName: file.name, mimeType: file.type || 'application/octet-stream'
-      }]);
-      if (upRes && upRes.success) {
-        proofData.fileId = upRes.data.fileId;
-        proofData.fileUrl = upRes.data.fileUrl;
-        proofData.fileName = upRes.data.fileName;
-      } else {
-        alert((upRes && upRes.message) || 'upload fail'); btn.disabled = false; return;
-      }
-    }
-    var res = await rpc('webLiffUpdateProofData', [SESSION.idToken, PROOF_MODAL_REQID, proofData]);
-    btn.disabled = false;
+    if (!proofData.files && !proofData.link && !proofData.note) { btn.disabled = false; btn.textContent = _lbl; alert(_pfFailMsg(u.failed)); return; }
+    var res = await rpc('webLiffUpdateProofData', [SESSION.idToken, reqId, proofData]);
+    btn.disabled = false; btn.textContent = _lbl;
     if (!res || !res.success) { alert((res && res.message) || 'fail'); return; }
-    alert(t('proof.successWait'));
-    closeProofModal();
-    loadHistoryTab();
-  } catch (e) { btn.disabled = false; alert(e.message || e); }
+    alert(u.failed.length ? _pfFailMsg(u.failed) : t('pf.saved'));
+    PROOF_MODAL_DIRTY = true;
+    if (PROOF_MODAL_REQID === reqId || PROOF_MODAL_REQID === null) closeProofModal();   // 送出途中已經關掉又開了別張 ⇒ 不去關那張（它關的時候會重新整理）
+  } catch (e) { btn.disabled = false; btn.textContent = _lbl; alert(e.message || e); }
 }
 </script>
 
