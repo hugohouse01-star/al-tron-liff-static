@@ -6,6 +6,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net https://*.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.line-scdn.net; connect-src https://script.google.com https://script.googleusercontent.com https://*.line.me https://*.line-scdn.net https://*.line-apps.com; font-src 'self'; frame-src https://*.line.me https://*.line-scdn.net; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>鋁創 · 點餐</title>
+<meta property="og:title" content="鋁創・點餐">
+<meta property="og:description" content="今天吃什麼？投票、點餐、查餘額">
+<meta name="description" content="鋁創點餐：投票、點餐、查餘額">
 <!--
   點餐系統 LINE 頁正式入口（meal-liff-3，M4 v0.5.0）。外殼：載 LINE 的 LIFF 程式 → boot.js（初始化、叫醒伺服器、問要載哪一版內容）→ app-<版號>.js（同仁頁）。
   規矩：外面來的字一律 textContent；不寫內嵌 script；瀏覽器裡不存身分資料（每個請求都帶 LINE 的身分憑證，伺服器不開 session）。
