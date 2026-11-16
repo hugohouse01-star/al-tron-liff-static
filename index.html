@@ -244,8 +244,8 @@
             <select id="appRelation"></select>
           </div>
           <div class="field hidden" id="appRelNameGroup">
-            <label data-i18n="apply.relativeName">親屬姓名</label>
-            <input type="text" id="appRelativeName">
+            <label id="appRelNameLabel" data-i18n="apply.relativeName">親屬姓名</label>
+            <input type="text" id="appRelativeName" maxlength="40">
           </div>
         </div>
 
@@ -371,7 +371,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.31';  // v1.0.525 配套:證明可以放多個檔(最多 10 個、每個 10 MB);補證明改成追加;還沒覆核通過可以拿掉;歷程看得到自己傳的檔
+var APP_VERSION = 'static-1.0.32';  // v1.0.536 配套:主管卡片餘額列、親屬欄位、假別與角色名稱修正。v1.0.525 配套:證明可以放多個檔(最多 10 個、每個 10 MB);補證明改成追加;還沒覆核通過可以拿掉;歷程看得到自己傳的檔
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -412,6 +412,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': '妊娠週期',
     'apply.preg.3m': '≥ 3 個月（流產假 28 天）', 'apply.preg.2_3m': '2 ~ 3 個月（流產假 7 天）', 'apply.preg.lt2m': '< 2 個月（流產假 5 天）',
     'apply.relation': '親屬關係', 'apply.relativeName': '親屬姓名',
+    'kin.parent': "父母", 'kin.foster_parent': "養父母", 'kin.step_parent': "繼父母", 'kin.spouse': "配偶", 'kin.grandparent': "祖父母", 'kin.child': "子女", 'kin.spouse_parent': "配偶之父母", 'kin.spouse_foster_parent': "配偶之養父母", 'kin.spouse_step_parent': "配偶之繼父母", 'kin.great_grandparent': "曾祖父母", 'kin.sibling': "兄弟姊妹", 'kin.spouse_grandparent': "配偶之祖父母", 'kin.other_family': "其他家屬", 'kin.adopted_child': "養子女", 'bal.annual': "特休本單後餘額 {r} 天", 'bal.yearly': "{y} 年已用 {u}／{g} 天，本單後剩 {r} 天", 'bal.yearlyOver': "{y} 年已用 {u}／{g} 天，本單後超過 {o} 天", 'bal.event': "法定 {g} 天，已請 {u} 天，本單後剩 {r} 天", 'bal.eventOver': "法定 {g} 天，已請 {u} 天，本單後超過 {o} 天", 'bal.count': "{y} 年已請 {u} 天（不含本單）", 'bal.incomplete': "資料不足，無法計算餘額（缺親屬關係、事件日或妊娠週期）", 'bal.unclassified': "（另有 {n} 天喪假沒記親屬，未計入）", 'bal.otherPending': "（另有待簽 {n} 天）", 'bal.overflowTo': "超過額度的 {n} 天已轉{name}", 'bal.overflowFrom': "由{name}超額轉入", 'bal.label': "餘額", 'kin.label': "親屬", 'kin.eventDate': "事件日", 'kin.choose': "— 請選擇 —", 'apply.spouseName': "配偶姓名",
     'apply.reason': '請假原因', 'apply.proofFile': '證明檔案（可選；拍照或選檔）',
     'apply.takePhoto': '📷 拍照', 'apply.pickFile': '📁 選檔',
     'apply.proofUrl': '證明連結（可選）', 'apply.proofNote': '證明說明（可選）',
@@ -565,6 +566,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': 'Pregnancy stage',
     'apply.preg.3m': '≥ 3 months (28 days)', 'apply.preg.2_3m': '2 – 3 months (7 days)', 'apply.preg.lt2m': '< 2 months (5 days)',
     'apply.relation': 'Relation', 'apply.relativeName': 'Relative name',
+    'kin.parent': "Parent", 'kin.foster_parent': "Foster parent", 'kin.step_parent': "Step-parent", 'kin.spouse': "Spouse", 'kin.grandparent': "Grandparent", 'kin.child': "Child", 'kin.spouse_parent': "Spouse's parent", 'kin.spouse_foster_parent': "Spouse's foster parent", 'kin.spouse_step_parent': "Spouse's step-parent", 'kin.great_grandparent': "Great-grandparent", 'kin.sibling': "Sibling", 'kin.spouse_grandparent': "Spouse's grandparent", 'kin.other_family': "Other family member", 'kin.adopted_child': "Adopted child", 'bal.annual': "Annual leave left after this request: {r} d", 'bal.yearly': "Used {u} of {g} d in {y}; {r} d left after this request", 'bal.yearlyOver': "Used {u} of {g} d in {y}; this request goes {o} d over", 'bal.event': "Entitled to {g} d, taken {u} d; {r} d left after this request", 'bal.eventOver': "Entitled to {g} d, taken {u} d; this request goes {o} d over", 'bal.count': "Taken {u} d in {y} (not counting this request)", 'bal.incomplete': "Not enough details to work out the balance (relation, event date or pregnancy stage missing)", 'bal.unclassified': "(another {n} d of bereavement leave has no relation recorded and is not counted)", 'bal.otherPending': "(another {n} d awaiting approval)", 'bal.overflowTo': "{n} d over the limit moved to {name}", 'bal.overflowFrom': "Overflow from {name}", 'bal.label': "Balance", 'kin.label': "Relative", 'kin.eventDate': "Event date", 'kin.choose': "— Select —", 'apply.spouseName': "Spouse's name",
     'apply.reason': 'Reason', 'apply.proofFile': 'Proof file (optional; photo or file)',
     'apply.takePhoto': '📷 Photo', 'apply.pickFile': '📁 File',
     'apply.proofUrl': 'Proof URL (optional)', 'apply.proofNote': 'Proof note (optional)',
@@ -718,6 +720,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': 'ระยะตั้งครรภ์',
     'apply.preg.3m': '≥ 3 เดือน (28 วัน)', 'apply.preg.2_3m': '2 – 3 เดือน (7 วัน)', 'apply.preg.lt2m': '< 2 เดือน (5 วัน)',
     'apply.relation': 'ความสัมพันธ์', 'apply.relativeName': 'ชื่อญาติ',
+    'kin.parent': "พ่อแม่", 'kin.foster_parent': "พ่อแม่บุญธรรม", 'kin.step_parent': "พ่อแม่เลี้ยง", 'kin.spouse': "คู่สมรส", 'kin.grandparent': "ปู่ย่าตายาย", 'kin.child': "ลูก", 'kin.spouse_parent': "พ่อแม่คู่สมรส", 'kin.spouse_foster_parent': "พ่อแม่บุญธรรมคู่สมรส", 'kin.spouse_step_parent': "พ่อแม่เลี้ยงคู่สมรส", 'kin.great_grandparent': "ทวด", 'kin.sibling': "พี่น้อง", 'kin.spouse_grandparent': "ปู่ย่าตายายคู่สมรส", 'kin.other_family': "ญาติคนอื่น", 'kin.adopted_child': "บุตรบุญธรรม", 'bal.annual': "พักร้อนคงเหลือหลังใบนี้ {r} วัน", 'bal.yearly': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เหลือ {r} วัน", 'bal.yearlyOver': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.event': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เหลือ {r} วัน", 'bal.eventOver': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.count': "ปี {y} ลาไปแล้ว {u} วัน (ไม่รวมใบนี้)", 'bal.incomplete': "ข้อมูลไม่พอ คำนวณยอดคงเหลือไม่ได้ (ขาดความสัมพันธ์ วันเหตุการณ์ หรืออายุครรภ์)", 'bal.unclassified': "(มีลาเพราะการตายอีก {n} วันที่ไม่ได้ระบุญาติ ไม่ได้นับรวม)", 'bal.otherPending': "(มีรออนุมัติอีก {n} วัน)", 'bal.overflowTo': "ส่วนที่เกินสิทธิ์ {n} วัน โอนเป็น{name}", 'bal.overflowFrom': "โอนมาจาก{name}ที่เกินสิทธิ์", 'bal.label': "ยอดคงเหลือ", 'kin.label': "ญาติ", 'kin.eventDate': "วันเหตุการณ์", 'kin.choose': "— เลือก —", 'apply.spouseName': "ชื่อคู่สมรส",
     'apply.reason': 'เหตุผล', 'apply.proofFile': 'ไฟล์หลักฐาน (ทางเลือก)',
     'apply.takePhoto': '📷 ถ่ายรูป', 'apply.pickFile': '📁 เลือกไฟล์',
     'apply.proofUrl': 'ลิงก์หลักฐาน (ทางเลือก)', 'apply.proofNote': 'หมายเหตุ (ทางเลือก)',
@@ -869,7 +872,10 @@ var STD_LEAVE_NAMES = {
   paternity:        { zh: '陪產假',    en: 'Paternity Leave',       th: 'ลาบิดา' },
   prenatal_checkup: { zh: '產檢假',    en: 'Prenatal Checkup',      th: 'ลาตรวจครรภ์' },
   miscarriage:      { zh: '流產假',    en: 'Miscarriage Leave',     th: 'ลาแท้งบุตร' },
-  official:         { zh: '公假',      en: 'Official Leave',        th: 'ลาราชการ' }
+  official:         { zh: '公假',      en: 'Official Leave',        th: 'ลาราชการ' },
+  manager:          { zh: '主管告假',   en: 'Manager Leave',         th: 'Manager Leave' },
+  company_grant:    { zh: '公司贈假',   en: 'Company Granted Leave', th: 'วันหยุดที่บริษัทมอบให้' },
+  flex_out:         { zh: '外出延時',   en: 'Flex-out Leave',        th: 'ลาออกนอกชั่วคราว' }
 };
 var STD_SHIFT_NAMES = {
   '2shift_day':     { zh: '2 班制 / 白班', en: '2-Shift Day',     th: 'กะ 2 ผลัด / กลางวัน' },
@@ -938,7 +944,7 @@ function changeLang(lang) {
     setText('whoName', SESSION.nameZh || SESSION.employeeId);
     // v1.0.8 修：拔掉 data-i18n，避免 renderApplyForm 末段 applyI18n 把 whoName 沖回「載入中…」
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
-    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+    setText('whoId', SESSION.employeeId + '（' + _roleLabel(SESSION.role) + '）');
   }
   // 重 render 歷程 / 月曆 if 已載入
   if (window._lastHistRequests) renderHistory(window._lastHistRequests);
@@ -1074,7 +1080,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     setText('whoName', SESSION.nameZh || SESSION.employeeId);
     // v1.0.8 修：拔掉 data-i18n，避免 renderApplyForm 末段 applyI18n 把 whoName 沖回「載入中…」
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
-    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+    setText('whoId', SESSION.employeeId + '（' + _roleLabel(SESSION.role) + '）');
     hide('loadingPane'); show('mainPane');
 
     // v1.0.139：依權限顯示分頁
@@ -1159,7 +1165,7 @@ async function onBind(btn) {
     applySessionLang();  // Lang-4
     setText('whoName', SESSION.nameZh || SESSION.employeeId);
     var _wn = $('whoName'); if (_wn) _wn.removeAttribute('data-i18n');
-    setText('whoId', SESSION.employeeId + '（' + t('app.role.' + (SESSION.role || 'employee')) + '）');
+    setText('whoId', SESSION.employeeId + '（' + _roleLabel(SESSION.role) + '）');
     hide('bindPane'); show('mainPane');
     // v1.0.139：依權限顯示分頁
     var nv2 = applyLiffNav();
@@ -1207,7 +1213,7 @@ var APPLY_LEAVE_TYPES = null;
 var APPLY_LEAVE_TYPES_LOADING = false;
 var ANNUAL_SPECIAL = false;  // v1.0.158：外籍特休特殊規則(0.5h 最小單位 + 可借支)
 var ANNUAL_WAIVE_ACTIVE = false;  // v1.0.264：後台「特休申請門檻臨時放寬」開啟中 → 前端也跳過提前天數/最少時數檢查
-var _LIFF_BUILD = 'static-1.0.31';  // build marker(強制 GitHub Pages 重新 build)
+var _LIFF_BUILD = 'static-1.0.32';  // build marker(強制 GitHub Pages 重新 build)
 var DELEGATE_LIST_LOADED = false;
 // v1.0.525：證明可以放多個檔（最多 10 個、每個 10 MB；伺服器會再擋一次）。拍照、選檔都加進清單，每個有 ✕。
 var PF_MAX_FILES = 10, PF_MAX_BYTES = 10 * 1024 * 1024;
@@ -1343,6 +1349,72 @@ function renderApplyForm() {
   applyI18n();
 }
 
+// ── v1.0.536：親屬欄位與主管卡片的餘額列（清單要跟伺服器 leave.js 的 KIN_RELATIONS_BY_LEAVE 一致） ──
+var KIN_REL_KEYS = { family: ['spouse','child','parent','spouse_parent','grandparent','sibling','other_family'],
+                     parental: ['child','adopted_child'] };
+function _isSpouseNameLeave(lid) { return lid === 'marriage' || lid === 'paternity'; }
+function _kinLabel(rel) { if (!rel) return ''; var k = 'kin.' + rel, v = t(k); return (!v || v === k) ? rel : v; }
+function _roleLabel(role) {
+  var r = role || 'employee', k = 'app.role.' + r, v = t(k);
+  if (v && v !== k) return v;
+  var zh = { '超級管理員': 'superadmin', '系統管理員': 'admin', '主管': 'manager', '一般使用者': 'user', '員工': 'employee' };
+  return zh[r] ? t('app.role.' + zh[r]) : r;
+}
+function _d2(n) { return String(Math.round(Number(n || 0) * 100) / 100); }
+function _syncKinFields(lid) {
+  var sel = $('appRelation');
+  var kind = (lid === 'bereavement') ? 'ber' : (KIN_REL_KEYS[lid] ? lid : '');
+  var keys = (kind === 'ber') ? REL_KEYS : (KIN_REL_KEYS[lid] || null);
+  var cur = sel ? Array.prototype.map.call(sel.options, function (o) { return o.value; }).join(',') : '';
+  if (sel && keys && cur !== [''].concat(keys).join(',')) {   // 比對實際選項（表單重畫會把選項重設回喪假那組）
+    sel.innerHTML = '';
+    var o0 = document.createElement('option'); o0.value = ''; o0.textContent = t('kin.choose'); sel.appendChild(o0);   // 第一格空白：一定要自己選
+    keys.forEach(function (k) {
+      var o = document.createElement('option');
+      o.value = k; o.textContent = t((kind === 'ber' ? 'rel.' : 'kin.') + k);
+      sel.appendChild(o);
+    });
+    sel.setAttribute('data-kind', kind);
+  }
+  var lbl = $('appRelNameLabel');
+  if (lbl) {
+    var key = _isSpouseNameLeave(lid) ? 'apply.spouseName' : 'apply.relativeName';
+    if (lbl.getAttribute('data-i18n') !== key && $('appRelativeName')) $('appRelativeName').value = '';   // 「親屬姓名」↔「配偶姓名」互換時清掉舊值
+    lbl.setAttribute('data-i18n', key); lbl.textContent = t(key);
+  }
+}
+function _pendKinText(r) {
+  if (!r || (!r.relation && !r.relativeName && !r.eventDate)) return '';
+  if (!r.relation && !r.relativeName) return t('kin.eventDate') + ' ' + r.eventDate;   // 產假、產檢這類只有事件日的
+  var s = [_kinLabel(r.relation), r.relativeName].filter(function (x) { return !!x; }).join('・');
+  if (r.eventDate) s += '（' + t('kin.eventDate') + ' ' + r.eventDate + '）';
+  return s;
+}
+function _pendBalParts(r) {
+  var parts = [], over = false;
+  var b = r && r.balanceInfo;
+  if (b) {
+    if (b.incomplete) parts.push(t('bal.incomplete'));
+    else if (b.mode === 'count') parts.push(t('bal.count', { u: _d2(b.used), y: String(b.year || '') }));
+    else if (b.granted != null && b.remainingAfter != null) {
+      var neg = Number(b.remainingAfter) < 0; if (neg) over = true;
+      parts.push(t('bal.' + (b.mode === 'event' ? 'event' : 'yearly') + (neg ? 'Over' : ''),
+        { g: _d2(b.granted), u: _d2(b.used), r: _d2(b.remainingAfter), o: _d2(-Number(b.remainingAfter)), y: String(b.year || '') }));
+    }
+    if (Number(b.otherPendingDays) > 0) parts.push(t('bal.otherPending', { n: _d2(b.otherPendingDays) }));
+    if (Number(b.unclassifiedDays) > 0) parts.push(t('bal.unclassified', { n: _d2(b.unclassifiedDays) }));
+    if (b.overflowTo && b.overflowTo.leaveId) parts.push(t('bal.overflowTo', { n: _d2(b.overflowTo.days), name: _locName({ leaveId: b.overflowTo.leaveId }, 'leave') }));
+    if (b.overflowFrom && b.overflowFrom.leaveId) parts.push(t('bal.overflowFrom', { name: _locName({ leaveId: b.overflowFrom.leaveId }, 'leave') }));
+  }
+  return { text: parts.join(' '), over: over };
+}
+function _pendKinBalHtml(r) {
+  var k = _pendKinText(r), b = _pendBalParts(r), h = '';
+  if (k) h += '<div>👤 ' + escapeHtml(k) + '</div>';
+  if (b.text) h += '<div' + (b.over ? ' style="color:#c62828;font-weight:600;"' : '') + '>📊 ' + escapeHtml(b.text) + '</div>';
+  return h;
+}
+
 function updateQuotaInfo() {
   var sel = $('appLeaveId'); if (!sel.options.length) return;
   var opt = sel.options[sel.selectedIndex];
@@ -1359,9 +1431,11 @@ function updateExtraFields() {
   function tog(id, on) { var el = $(id); if (!el) return; if (on) el.classList.remove('hidden'); else el.classList.add('hidden'); }
   tog('appEventDateGroup', needEvent);
   tog('appPregnancyStageGroup', isMis);
-  tog('appRelationGroup', isBer);
-  tog('appRelNameGroup', isBer);
-  tog('appExtraCard', needEvent || isBer || isMis);
+  var isSp = _isSpouseNameLeave(lid), hasKinRel = !!KIN_REL_KEYS[lid];   // v1.0.536
+  tog('appRelationGroup', isBer || hasKinRel);
+  tog('appRelNameGroup', isBer || hasKinRel || isSp);
+  tog('appExtraCard', needEvent || isBer || isMis || hasKinRel || isSp);
+  _syncKinFields(lid);
 }
 
 function onStartDateChanged() {
@@ -1475,10 +1549,10 @@ async function onSubmitLeave(btn) {
   var d2 = $('appDelegate2') ? $('appDelegate2').value : '';
   var d3 = $('appDelegate3') ? $('appDelegate3').value : '';
   var delegates = [d1, d2, d3].filter(function(x){ return x; }).join(',');
-  if (leaveId === 'bereavement') {
-    if (!relation) { _applyErr(t('apply.relation')); return; }
-    if (!relativeName) { _applyErr(t('apply.relativeName')); return; }
-  }
+  var _needRel = (leaveId === 'bereavement') || !!KIN_REL_KEYS[leaveId];   // v1.0.536：家庭照顧／育嬰也要關係＋姓名；婚假／陪產要配偶姓名
+  var _needName = _needRel || _isSpouseNameLeave(leaveId);
+  if (_needRel && !relation) { _applyErr(t('apply.relation')); return; }
+  if (_needName && !relativeName) { _applyErr(t(_isSpouseNameLeave(leaveId) ? 'apply.spouseName' : 'apply.relativeName')); return; }
   if (['bereavement','marriage','maternity','paternity','prenatal_checkup','miscarriage'].indexOf(leaveId) >= 0) {
     if (!eventDate) { _applyErr(t('apply.eventDate') + '（' + t('apply.eventDateHint') + '）'); return; }
   }
@@ -1493,8 +1567,8 @@ async function onSubmitLeave(btn) {
       leaveId: leaveId, startDate: startDate, startTime: startTime,
       endDate: endDate, endTime: endTime, reason: reason,
       proofUrl: proofUrl, proofData: proofData, delegates: delegates,
-      relation: (leaveId === 'bereavement') ? relation : '',
-      relativeName: (leaveId === 'bereavement') ? relativeName : '',
+      relation: _needRel ? relation : '',
+      relativeName: _needName ? relativeName : '',
       eventDate: (['bereavement','marriage','maternity','paternity','prenatal_checkup','miscarriage'].indexOf(leaveId) >= 0) ? eventDate : '',
       pregnancyStage: (leaveId === 'miscarriage') ? pregnancyStage : ''
     }]);
@@ -1980,7 +2054,7 @@ function renderPending() {
     var kindBadge = (r._kind === 'approve')
       ? '<span style="background:#FFF7E6;color:#854F0B;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.approve') + '</span>'
       : '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;">' + t('pending.badge.proof') + '</span>';
-    var leaveName = _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave');
+    var leaveName = _locName({ leaveId: r.leaveId }, 'leave');
     // 日期 range：全天顯示日期(區間);部分時數顯示時段
     var dateLine = fmtLeavePeriod(r);
     var hours = Number(r.hoursTotal || 0);
@@ -1998,6 +2072,7 @@ function renderPending() {
       +   '<div style="font-size:12px;color:#555;line-height:1.6;margin-bottom:10px;">'
       +     '<div>📌 ' + escapeHtml(leaveName) + '｜' + fmtLeaveDur(hours) + '</div>'
       +     (r.annualRemainingAfter != null ? '<div>💰 ' + t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '</div>' : '')
+      +     _pendKinBalHtml(r)   // v1.0.536：親屬與其他假別的餘額列
       +     '<div>📅 ' + escapeHtml(dateLine) + '</div>'
       +     (r.reason ? '<div>💬 ' + escapeHtml(r.reason) + '</div>' : '')
       +     ((r.ackSummary && r.ackSummary.total > 0) ? '<div style="color:' + (r.ackSummary.confirmed >= r.ackSummary.total ? '#2e7d32' : '#f57c00') + ';">' + (r.ackSummary.confirmed >= r.ackSummary.total ? '✅ ' : '⏳ ') + t('ack.statusLabel') + ' ' + r.ackSummary.confirmed + '/' + r.ackSummary.total + ((r.ackSummary.pending && r.ackSummary.pending.length) ? '（' + t('ack.pendingLabel') + '：' + r.ackSummary.pending.map(escapeHtml).join('、') + '）' : '') + '</div>' : '')
@@ -2020,7 +2095,7 @@ function renderPending() {
 
 // v1.0.516：待簽清單裡的「取消申請」卡（規則總表第 2 表）：核准＝假單取消＋退額；駁回＝維持已核准；假已開始只剩駁回
 function _renderCancelReqCard(r) {
-  var leaveName = _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave');
+  var leaveName = _locName({ leaveId: r.leaveId }, 'leave');
   var h = '<div class="card" style="padding:12px;background:#fff8e1;border:1px solid #ffb74d;">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
     +   '<strong style="font-size:14px;">' + escapeHtml(r.employeeId) + '</strong>'
@@ -2082,10 +2157,12 @@ function showPendingDetail(requestId, kind) {
   if (!r) return;
   var msg = '📌 ' + requestId + '\n\n'
     + t('pending.det.applicant') + ': ' + r.employeeId + '\n'
-    + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId, nameZh: r.leaveId }, 'leave') + '\n'
+    + t('pending.det.leave') + ': ' + _locName({ leaveId: r.leaveId }, 'leave') + '\n'
     + t('pending.det.range') + ': ' + fmtLeavePeriod(r) + '\n'
     + t('pending.det.hours') + ': ' + fmtLeaveDur(r.hoursTotal) + '\n'
     + (r.annualRemainingAfter != null ? (t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '\n') : '')
+    + (_pendKinText(r) ? ('👤 ' + _pendKinText(r) + '\n') : '')
+    + (_pendBalParts(r).text ? ('📊 ' + _pendBalParts(r).text + '\n') : '')
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
     var _fl = _liffFilesOf(r.proofData);   // v1.0.525：列檔名（連結在卡片上點）
