@@ -371,7 +371,7 @@
 // === 配置 =============================================================
 var LIFF_ID = '2010088139-PM556AZ4';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbzbCn4L5zHXZREPRqS1Yq07NxX3iYHocuOVIpKc7gVcP6my8jLE8yMkA3tWWUG7qgobQA/exec';
-var APP_VERSION = 'static-1.0.32';  // v1.0.536 配套:主管卡片餘額列、親屬欄位、假別與角色名稱修正。v1.0.525 配套:證明可以放多個檔(最多 10 個、每個 10 MB);補證明改成追加;還沒覆核通過可以拿掉;歷程看得到自己傳的檔
+var APP_VERSION = 'static-1.0.33';  // v1.0.538 配套:主管卡片婚假使用期限提醒。v1.0.536 配套:主管卡片餘額列、親屬欄位、假別與角色名稱修正。v1.0.525 配套:證明可以放多個檔(最多 10 個、每個 10 MB);補證明改成追加;還沒覆核通過可以拿掉;歷程看得到自己傳的檔
 // ======================================================================
 
 // 1.11y.24：warmup ping — 在 LIFF SDK init 同時觸發 GAS 預熱
@@ -412,7 +412,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': '妊娠週期',
     'apply.preg.3m': '≥ 3 個月（流產假 28 天）', 'apply.preg.2_3m': '2 ~ 3 個月（流產假 7 天）', 'apply.preg.lt2m': '< 2 個月（流產假 5 天）',
     'apply.relation': '親屬關係', 'apply.relativeName': '親屬姓名',
-    'kin.parent': "父母", 'kin.foster_parent': "養父母", 'kin.step_parent': "繼父母", 'kin.spouse': "配偶", 'kin.grandparent': "祖父母", 'kin.child': "子女", 'kin.spouse_parent': "配偶之父母", 'kin.spouse_foster_parent': "配偶之養父母", 'kin.spouse_step_parent': "配偶之繼父母", 'kin.great_grandparent': "曾祖父母", 'kin.sibling': "兄弟姊妹", 'kin.spouse_grandparent': "配偶之祖父母", 'kin.other_family': "其他家屬", 'kin.adopted_child': "養子女", 'bal.annual': "特休本單後餘額 {r} 天", 'bal.yearly': "{y} 年已用 {u}／{g} 天，本單後剩 {r} 天", 'bal.yearlyOver': "{y} 年已用 {u}／{g} 天，本單後超過 {o} 天", 'bal.event': "法定 {g} 天，已請 {u} 天，本單後剩 {r} 天", 'bal.eventOver': "法定 {g} 天，已請 {u} 天，本單後超過 {o} 天", 'bal.count': "{y} 年已請 {u} 天（不含本單）", 'bal.incomplete': "資料不足，無法計算餘額（缺親屬關係、事件日或妊娠週期）", 'bal.unclassified': "（另有 {n} 天喪假沒記親屬，未計入）", 'bal.otherPending': "（另有待簽 {n} 天）", 'bal.overflowTo': "超過額度的 {n} 天已轉{name}", 'bal.overflowFrom': "由{name}超額轉入", 'bal.label': "餘額", 'kin.label': "親屬", 'kin.eventDate': "事件日", 'kin.choose': "— 請選擇 —", 'apply.spouseName': "配偶姓名",
+    'kin.parent': "父母", 'kin.foster_parent': "養父母", 'kin.step_parent': "繼父母", 'kin.spouse': "配偶", 'kin.grandparent': "祖父母", 'kin.child': "子女", 'kin.spouse_parent': "配偶之父母", 'kin.spouse_foster_parent': "配偶之養父母", 'kin.spouse_step_parent': "配偶之繼父母", 'kin.great_grandparent': "曾祖父母", 'kin.sibling': "兄弟姊妹", 'kin.spouse_grandparent': "配偶之祖父母", 'kin.other_family': "其他家屬", 'kin.adopted_child': "養子女", 'bal.annual': "特休本單後餘額 {r} 天", 'bal.yearly': "{y} 年已用 {u}／{g} 天，本單後剩 {r} 天", 'bal.yearlyOver': "{y} 年已用 {u}／{g} 天，本單後超過 {o} 天", 'bal.event': "法定 {g} 天，已請 {u} 天，本單後剩 {r} 天", 'bal.eventOver': "法定 {g} 天，已請 {u} 天，本單後超過 {o} 天", 'bal.count': "{y} 年已請 {u} 天（不含本單）", 'bal.incomplete': "資料不足，無法計算餘額（缺親屬關係、事件日或妊娠週期）", 'bal.unclassified': "（另有 {n} 天喪假沒記親屬，未計入）", 'bal.otherPending': "（另有待簽 {n} 天）", 'bal.overflowTo': "超過額度的 {n} 天已轉{name}", 'bal.overflowFrom': "由{name}超額轉入", 'bal.label': "餘額", 'bal.mwOk': "⏳ 婚假使用期限 {from}～{to}（公司同意可延到 {max}）", 'bal.mwOver': "⚠ 本單已超過婚假使用期限（{from}～{to}），需公司同意（最長到 {max}）", 'bal.mwOverMax': "⚠ 本單已超過婚假最長使用期限（{max}）", 'bal.mwEarly': "⚠ 本單早於婚假可以開始請的日期（{from}）", 'kin.label': "親屬", 'kin.eventDate': "事件日", 'kin.choose': "— 請選擇 —", 'apply.spouseName': "配偶姓名",
     'apply.reason': '請假原因', 'apply.proofFile': '證明檔案（可選；拍照或選檔）',
     'apply.takePhoto': '📷 拍照', 'apply.pickFile': '📁 選檔',
     'apply.proofUrl': '證明連結（可選）', 'apply.proofNote': '證明說明（可選）',
@@ -566,7 +566,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': 'Pregnancy stage',
     'apply.preg.3m': '≥ 3 months (28 days)', 'apply.preg.2_3m': '2 – 3 months (7 days)', 'apply.preg.lt2m': '< 2 months (5 days)',
     'apply.relation': 'Relation', 'apply.relativeName': 'Relative name',
-    'kin.parent': "Parent", 'kin.foster_parent': "Foster parent", 'kin.step_parent': "Step-parent", 'kin.spouse': "Spouse", 'kin.grandparent': "Grandparent", 'kin.child': "Child", 'kin.spouse_parent': "Spouse's parent", 'kin.spouse_foster_parent': "Spouse's foster parent", 'kin.spouse_step_parent': "Spouse's step-parent", 'kin.great_grandparent': "Great-grandparent", 'kin.sibling': "Sibling", 'kin.spouse_grandparent': "Spouse's grandparent", 'kin.other_family': "Other family member", 'kin.adopted_child': "Adopted child", 'bal.annual': "Annual leave left after this request: {r} d", 'bal.yearly': "Used {u} of {g} d in {y}; {r} d left after this request", 'bal.yearlyOver': "Used {u} of {g} d in {y}; this request goes {o} d over", 'bal.event': "Entitled to {g} d, taken {u} d; {r} d left after this request", 'bal.eventOver': "Entitled to {g} d, taken {u} d; this request goes {o} d over", 'bal.count': "Taken {u} d in {y} (not counting this request)", 'bal.incomplete': "Not enough details to work out the balance (relation, event date or pregnancy stage missing)", 'bal.unclassified': "(another {n} d of bereavement leave has no relation recorded and is not counted)", 'bal.otherPending': "(another {n} d awaiting approval)", 'bal.overflowTo': "{n} d over the limit moved to {name}", 'bal.overflowFrom': "Overflow from {name}", 'bal.label': "Balance", 'kin.label': "Relative", 'kin.eventDate': "Event date", 'kin.choose': "— Select —", 'apply.spouseName': "Spouse's name",
+    'kin.parent': "Parent", 'kin.foster_parent': "Foster parent", 'kin.step_parent': "Step-parent", 'kin.spouse': "Spouse", 'kin.grandparent': "Grandparent", 'kin.child': "Child", 'kin.spouse_parent': "Spouse's parent", 'kin.spouse_foster_parent': "Spouse's foster parent", 'kin.spouse_step_parent': "Spouse's step-parent", 'kin.great_grandparent': "Great-grandparent", 'kin.sibling': "Sibling", 'kin.spouse_grandparent': "Spouse's grandparent", 'kin.other_family': "Other family member", 'kin.adopted_child': "Adopted child", 'bal.annual': "Annual leave left after this request: {r} d", 'bal.yearly': "Used {u} of {g} d in {y}; {r} d left after this request", 'bal.yearlyOver': "Used {u} of {g} d in {y}; this request goes {o} d over", 'bal.event': "Entitled to {g} d, taken {u} d; {r} d left after this request", 'bal.eventOver': "Entitled to {g} d, taken {u} d; this request goes {o} d over", 'bal.count': "Taken {u} d in {y} (not counting this request)", 'bal.incomplete': "Not enough details to work out the balance (relation, event date or pregnancy stage missing)", 'bal.unclassified': "(another {n} d of bereavement leave has no relation recorded and is not counted)", 'bal.otherPending': "(another {n} d awaiting approval)", 'bal.overflowTo': "{n} d over the limit moved to {name}", 'bal.overflowFrom': "Overflow from {name}", 'bal.label': "Balance", 'bal.mwOk': "⏳ Marriage leave window {from} – {to} (up to {max} with company approval)", 'bal.mwOver': "⚠ This request is past the marriage leave window ({from} – {to}); company approval needed (latest {max})", 'bal.mwOverMax': "⚠ This request is past the latest marriage leave date ({max})", 'bal.mwEarly': "⚠ This request starts before marriage leave can begin ({from})", 'kin.label': "Relative", 'kin.eventDate': "Event date", 'kin.choose': "— Select —", 'apply.spouseName': "Spouse's name",
     'apply.reason': 'Reason', 'apply.proofFile': 'Proof file (optional; photo or file)',
     'apply.takePhoto': '📷 Photo', 'apply.pickFile': '📁 File',
     'apply.proofUrl': 'Proof URL (optional)', 'apply.proofNote': 'Proof note (optional)',
@@ -720,7 +720,7 @@ var I18N_DICTS = {
     'apply.pregnancyStage': 'ระยะตั้งครรภ์',
     'apply.preg.3m': '≥ 3 เดือน (28 วัน)', 'apply.preg.2_3m': '2 – 3 เดือน (7 วัน)', 'apply.preg.lt2m': '< 2 เดือน (5 วัน)',
     'apply.relation': 'ความสัมพันธ์', 'apply.relativeName': 'ชื่อญาติ',
-    'kin.parent': "พ่อแม่", 'kin.foster_parent': "พ่อแม่บุญธรรม", 'kin.step_parent': "พ่อแม่เลี้ยง", 'kin.spouse': "คู่สมรส", 'kin.grandparent': "ปู่ย่าตายาย", 'kin.child': "ลูก", 'kin.spouse_parent': "พ่อแม่คู่สมรส", 'kin.spouse_foster_parent': "พ่อแม่บุญธรรมคู่สมรส", 'kin.spouse_step_parent': "พ่อแม่เลี้ยงคู่สมรส", 'kin.great_grandparent': "ทวด", 'kin.sibling': "พี่น้อง", 'kin.spouse_grandparent': "ปู่ย่าตายายคู่สมรส", 'kin.other_family': "ญาติคนอื่น", 'kin.adopted_child': "บุตรบุญธรรม", 'bal.annual': "พักร้อนคงเหลือหลังใบนี้ {r} วัน", 'bal.yearly': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เหลือ {r} วัน", 'bal.yearlyOver': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.event': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เหลือ {r} วัน", 'bal.eventOver': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.count': "ปี {y} ลาไปแล้ว {u} วัน (ไม่รวมใบนี้)", 'bal.incomplete': "ข้อมูลไม่พอ คำนวณยอดคงเหลือไม่ได้ (ขาดความสัมพันธ์ วันเหตุการณ์ หรืออายุครรภ์)", 'bal.unclassified': "(มีลาเพราะการตายอีก {n} วันที่ไม่ได้ระบุญาติ ไม่ได้นับรวม)", 'bal.otherPending': "(มีรออนุมัติอีก {n} วัน)", 'bal.overflowTo': "ส่วนที่เกินสิทธิ์ {n} วัน โอนเป็น{name}", 'bal.overflowFrom': "โอนมาจาก{name}ที่เกินสิทธิ์", 'bal.label': "ยอดคงเหลือ", 'kin.label': "ญาติ", 'kin.eventDate': "วันเหตุการณ์", 'kin.choose': "— เลือก —", 'apply.spouseName': "ชื่อคู่สมรส",
+    'kin.parent': "พ่อแม่", 'kin.foster_parent': "พ่อแม่บุญธรรม", 'kin.step_parent': "พ่อแม่เลี้ยง", 'kin.spouse': "คู่สมรส", 'kin.grandparent': "ปู่ย่าตายาย", 'kin.child': "ลูก", 'kin.spouse_parent': "พ่อแม่คู่สมรส", 'kin.spouse_foster_parent': "พ่อแม่บุญธรรมคู่สมรส", 'kin.spouse_step_parent': "พ่อแม่เลี้ยงคู่สมรส", 'kin.great_grandparent': "ทวด", 'kin.sibling': "พี่น้อง", 'kin.spouse_grandparent': "ปู่ย่าตายายคู่สมรส", 'kin.other_family': "ญาติคนอื่น", 'kin.adopted_child': "บุตรบุญธรรม", 'bal.annual': "พักร้อนคงเหลือหลังใบนี้ {r} วัน", 'bal.yearly': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เหลือ {r} วัน", 'bal.yearlyOver': "ปี {y} ใช้ไป {u}/{g} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.event': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เหลือ {r} วัน", 'bal.eventOver': "สิทธิ์ {g} วัน ลาไปแล้ว {u} วัน หลังใบนี้เกินสิทธิ์ {o} วัน", 'bal.count': "ปี {y} ลาไปแล้ว {u} วัน (ไม่รวมใบนี้)", 'bal.incomplete': "ข้อมูลไม่พอ คำนวณยอดคงเหลือไม่ได้ (ขาดความสัมพันธ์ วันเหตุการณ์ หรืออายุครรภ์)", 'bal.unclassified': "(มีลาเพราะการตายอีก {n} วันที่ไม่ได้ระบุญาติ ไม่ได้นับรวม)", 'bal.otherPending': "(มีรออนุมัติอีก {n} วัน)", 'bal.overflowTo': "ส่วนที่เกินสิทธิ์ {n} วัน โอนเป็น{name}", 'bal.overflowFrom': "โอนมาจาก{name}ที่เกินสิทธิ์", 'bal.label': "ยอดคงเหลือ", 'bal.mwOk': "⏳ ช่วงใช้สิทธิ์ลาแต่งงาน {from} – {to} (ขยายได้ถึง {max} หากบริษัทอนุมัติ)", 'bal.mwOver': "⚠ ใบลานี้เกินช่วงใช้สิทธิ์ลาแต่งงาน ({from} – {to}) ต้องได้รับอนุมัติจากบริษัท (ไม่เกิน {max})", 'bal.mwOverMax': "⚠ ใบลานี้เกินวันสุดท้ายที่ใช้สิทธิ์ลาแต่งงานได้ ({max})", 'bal.mwEarly': "⚠ ใบลานี้เริ่มก่อนวันที่เริ่มใช้สิทธิ์ลาแต่งงานได้ ({from})", 'kin.label': "ญาติ", 'kin.eventDate': "วันเหตุการณ์", 'kin.choose': "— เลือก —", 'apply.spouseName': "ชื่อคู่สมรส",
     'apply.reason': 'เหตุผล', 'apply.proofFile': 'ไฟล์หลักฐาน (ทางเลือก)',
     'apply.takePhoto': '📷 ถ่ายรูป', 'apply.pickFile': '📁 เลือกไฟล์',
     'apply.proofUrl': 'ลิงก์หลักฐาน (ทางเลือก)', 'apply.proofNote': 'หมายเหตุ (ทางเลือก)',
@@ -1213,7 +1213,7 @@ var APPLY_LEAVE_TYPES = null;
 var APPLY_LEAVE_TYPES_LOADING = false;
 var ANNUAL_SPECIAL = false;  // v1.0.158：外籍特休特殊規則(0.5h 最小單位 + 可借支)
 var ANNUAL_WAIVE_ACTIVE = false;  // v1.0.264：後台「特休申請門檻臨時放寬」開啟中 → 前端也跳過提前天數/最少時數檢查
-var _LIFF_BUILD = 'static-1.0.32';  // build marker(強制 GitHub Pages 重新 build)
+var _LIFF_BUILD = 'static-1.0.33';  // build marker(強制 GitHub Pages 重新 build)
 var DELEGATE_LIST_LOADED = false;
 // v1.0.525：證明可以放多個檔（最多 10 個、每個 10 MB；伺服器會再擋一次）。拍照、選檔都加進清單，每個有 ✕。
 var PF_MAX_FILES = 10, PF_MAX_BYTES = 10 * 1024 * 1024;
@@ -1412,7 +1412,17 @@ function _pendKinBalHtml(r) {
   var k = _pendKinText(r), b = _pendBalParts(r), h = '';
   if (k) h += '<div>👤 ' + escapeHtml(k) + '</div>';
   if (b.text) h += '<div' + (b.over ? ' style="color:#c62828;font-weight:600;"' : '') + '>📊 ' + escapeHtml(b.text) + '</div>';
+  var w = _pendUseWin(r);   // v1.0.538
+  if (w.text) h += '<div' + (w.warn ? ' style="color:#c62828;font-weight:600;"' : '') + '>' + escapeHtml(w.text) + '</div>';
   return h;
+}
+// v1.0.538（HUGO 2026-11-16）：婚假使用期限那一行。只提醒、不擋；後端只在「婚假而且有事件日」時才給 useWindow。
+function _pendUseWin(r) {
+  var w = r && r.balanceInfo && r.balanceInfo.useWindow;
+  if (!w || !w.from || !w.to) return { text: '', warn: false };
+  var st = String(w.state || 'ok');
+  var key = (st === 'overMax') ? 'bal.mwOverMax' : (st === 'over' ? 'bal.mwOver' : (st === 'early' ? 'bal.mwEarly' : 'bal.mwOk'));
+  return { text: t(key, { from: String(w.from), to: String(w.to), max: String(w.toMax || '') }), warn: st !== 'ok' };
 }
 
 function updateQuotaInfo() {
@@ -2163,6 +2173,7 @@ function showPendingDetail(requestId, kind) {
     + (r.annualRemainingAfter != null ? (t('apply.balanceAfter') + fmtBalDays(r.annualRemainingAfter) + '\n') : '')
     + (_pendKinText(r) ? ('👤 ' + _pendKinText(r) + '\n') : '')
     + (_pendBalParts(r).text ? ('📊 ' + _pendBalParts(r).text + '\n') : '')
+    + (_pendUseWin(r).text ? (_pendUseWin(r).text + '\n') : '')   // v1.0.538
     + (r.reason ? t('pending.det.reason') + ': ' + r.reason + '\n' : '');
   if (kind === 'proof' && r.proofData) {
     var _fl = _liffFilesOf(r.proofData);   // v1.0.525：列檔名（連結在卡片上點）
